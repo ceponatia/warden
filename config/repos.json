@@ -1,1 +1,63 @@
-[]
+[
+  {
+    "slug": "chatterbox",
+    "path": "/home/brian/projects/chatterbox",
+    "type": "typescript/pnpm-monorepo",
+    "sourceRoots": [
+      "apps",
+      "packages"
+    ],
+    "testPatterns": [
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx"
+    ],
+    "docFiles": [
+      "AGENTS.md",
+      "README.md"
+    ],
+    "ignorePatterns": [
+      "node_modules",
+      "dist",
+      ".next",
+      "node_modules/",
+      "/.pnp",
+      ".pnp.*",
+      ".yarn/*",
+      "!.yarn/patches",
+      "!.yarn/plugins",
+      "!.yarn/releases",
+      "!.yarn/versions",
+      "coverage/",
+      ".next/",
+      "out/",
+      "build/",
+      "dist/",
+      ".DS_Store",
+      "*.pem",
+      "prompts/",
+      "npm-debug.log*",
+      "yarn-debug.log*",
+      "yarn-error.log*",
+      ".pnpm-debug.log*",
+      ".env*",
+      ".vercel",
+      "*.tsbuildinfo",
+      "next-env.d.ts",
+      "chatterbox.code-workspace",
+      ".codacy/",
+      ".github/",
+      ".vscode/",
+      ".windsurf/"
+    ],
+    "scopeFile": "config/chatterbox.scope",
+    "thresholds": {
+      "staleDays": 6,
+      "highChurnEdits": 5,
+      "growthMultiplier": 2,
+      "directoryGrowthPct": 20
+    }
+  }
+]

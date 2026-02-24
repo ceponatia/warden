@@ -1,0 +1,53 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../cb-dev-docs"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/.next": true,
+			"**/node_modules": true,
+			"pnpm-lock.yaml": true,
+			"**/dist": true,
+			"**/build": true,
+			"**/coverage": true,
+		},
+		"search.exclude": {
+			"**/.next": true,
+			"**/node_modules": true,
+			"pnpm-lock.yaml": true,
+		},
+		"js/ts.tsdk.path": "node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib",
+		"eslint.workingDirectories": [
+			{
+				"pattern": "apps/*"
+			},
+			{
+				"pattern": "packages/*"
+			},
+		],
+		"markdownlint.configFile": "markdownlint.json",
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "lint:workspace",
+				"type": "shell",
+				"command": "pnpm -w lint",
+				"problemMatcher": [
+					"$eslint-stylish"
+				],
+				"group": "build",
+				"presentation": {
+					"reveal": "always",
+					"panel": "dedicated"
+				},
+			},
+		],
+	},
+}

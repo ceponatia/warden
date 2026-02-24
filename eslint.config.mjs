@@ -10,7 +10,11 @@ export default [
   {
     files: ["**/*.ts", "**/*.tsx"],
     rules: {
-      complexity: ["warn", 10],
+      complexity: ["warn", 12],
+      "max-lines": [
+        "warn",
+        { max: 500, skipBlankLines: true, skipComments: true },
+      ],
       "max-lines-per-function": [
         "warn",
         {

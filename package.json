@@ -2,7 +2,8 @@
   "name": "warden",
   "version": "0.1.0",
   "private": true,
-  "description": "Scaffold the Warden repo and build the data collection layer: shell/Node scripts that gather git stats, staleness data, and maintenance debt markers into structured JSON snapshots.",
+  "description": "Tool (CLI, web dash, VS Code extension) for repository health monitoring and reporting across growth, staleness, complexity, and architectural drift.",
+  "packageManager": "pnpm@10.28.2",
   "type": "module",
   "bin": {
     "warden": "./src/cli/index.ts"

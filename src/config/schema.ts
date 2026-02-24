@@ -1,0 +1,78 @@
+import type { RepoConfig, RepoThresholds } from "../types/snapshot.js";
+
+export const DEFAULT_THRESHOLDS: RepoThresholds = {
+  staleDays: 6,
+  highChurnEdits: 5,
+  growthMultiplier: 2,
+  directoryGrowthPct: 20,
+};
+
+function assertNonEmptyString(
+  value: unknown,
+  field: string,
+): asserts value is string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`Invalid repo config field: ${field}`);
+  }
+}
+
+function asStringArray(value: unknown, field: string): string[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid repo config field: ${field}`);
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function resolvePositiveNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && value > 0 ? value : fallback;
+}
+
+function normalizeThresholds(
+  rawThresholds: Partial<RepoThresholds> | undefined,
+): RepoThresholds {
+  const source = rawThresholds ?? DEFAULT_THRESHOLDS;
+
+  return {
+    staleDays: resolvePositiveNumber(
+      source.staleDays,
+      DEFAULT_THRESHOLDS.staleDays,
+    ),
+    highChurnEdits: resolvePositiveNumber(
+      source.highChurnEdits,
+      DEFAULT_THRESHOLDS.highChurnEdits,
+    ),
+    growthMultiplier: resolvePositiveNumber(
+      source.growthMultiplier,
+      DEFAULT_THRESHOLDS.growthMultiplier,
+    ),
+    directoryGrowthPct: resolvePositiveNumber(
+      source.directoryGrowthPct,
+      DEFAULT_THRESHOLDS.directoryGrowthPct,
+    ),
+  };
+}
+
+export function normalizeRepoConfig(value: unknown): RepoConfig {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Invalid repo config entry");
+  }
+
+  const raw = value as Partial<RepoConfig>;
+  assertNonEmptyString(raw.slug, "slug");
+  assertNonEmptyString(raw.path, "path");
+  assertNonEmptyString(raw.type, "type");
+  const thresholds = normalizeThresholds(raw.thresholds);
+
+  return {
+    slug: raw.slug,
+    path: raw.path,
+    type: raw.type,
+    sourceRoots: asStringArray(raw.sourceRoots ?? [], "sourceRoots"),
+    testPatterns: asStringArray(raw.testPatterns ?? [], "testPatterns"),
+    docFiles: asStringArray(raw.docFiles ?? [], "docFiles"),
+    ignorePatterns: asStringArray(raw.ignorePatterns ?? [], "ignorePatterns"),
+    scopeFile: typeof raw.scopeFile === "string" ? raw.scopeFile : undefined,
+    thresholds,
+  };
+}

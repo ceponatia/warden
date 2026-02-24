@@ -1,0 +1,52 @@
+# Fully ignored -- no metrics at all
+*.pem
+*.tsbuildinfo
+.DS_Store
+.codacy/
+.env*
+.github/
+.next/
+.next/**
+.pnp.*
+.pnpm-debug.log*
+.vercel
+.vscode/
+.windsurf/
+.yarn/*
+/.pnp
+build/
+build/**
+chatterbox.code-workspace
+coverage/
+coverage/**
+dist/
+dist/**
+next-env.d.ts
+node_modules/
+node_modules/**
+npm-debug.log*
+out/
+out/**
+package-lock.json
+pnpm-lock.yaml
+prompts/
+yarn-debug.log*
+yarn-error.log*
+yarn.lock
+
+# Doc files -- size and staleness only (no import checks)
+[metrics: size, staleness]
+AGENTS.md
+README.md
+*.md
+
+# Config files -- staleness only
+[metrics: staleness]
+tsconfig.json
+tsconfig.*.json
+eslint.config.*
+package.json
+components.json
+next.config.*
+postcss.config.*
+next-env.d.ts
