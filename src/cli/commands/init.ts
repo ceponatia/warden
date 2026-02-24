@@ -6,7 +6,11 @@ import {
   generateDefaultScopeFile,
   getDefaultScopeFilePath,
 } from "../../config/scope.js";
-import { DEFAULT_THRESHOLDS } from "../../config/schema.js";
+import {
+  DEFAULT_COMMIT_THRESHOLD,
+  DEFAULT_RETENTION,
+  DEFAULT_THRESHOLDS,
+} from "../../config/schema.js";
 import { readGitIgnore, runCommand } from "../../collectors/utils.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 
@@ -118,6 +122,8 @@ export async function runInitCommand(targetPath: string): Promise<void> {
     ignorePatterns,
     scopeFile,
     thresholds: { ...DEFAULT_THRESHOLDS },
+    retention: { ...DEFAULT_RETENTION },
+    commitThreshold: DEFAULT_COMMIT_THRESHOLD,
   };
 
   await upsertRepoConfig(config);

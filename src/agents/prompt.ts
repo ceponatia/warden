@@ -27,6 +27,7 @@ export function assemblePrompt(
   config: RepoConfig,
   bundle: SnapshotBundle,
   delta?: SnapshotDelta,
+  deltaContextLabel?: string,
 ): string {
   const { gitStats, staleness, debtMarkers, complexity, imports, runtime } =
     bundle;
@@ -48,10 +49,12 @@ export function assemblePrompt(
     "## Staleness",
     `Stale files: ${staleness.staleFiles.length}`,
     `Stale directories: ${staleness.staleDirectories.length}`,
-    `Top stale files: ${staleness.staleFiles
-      .slice(0, 5)
-      .map((f) => `${f.path} (${f.daysSinceLastCommit}d)`)
-      .join(", ") || "none"}`,
+    `Top stale files: ${
+      staleness.staleFiles
+        .slice(0, 5)
+        .map((f) => `${f.path} (${f.daysSinceLastCommit}d)`)
+        .join(", ") || "none"
+    }`,
     "",
     "## Maintenance Debt",
     `TODOs: ${debtMarkers.summary.totalTodos}`,
@@ -68,10 +71,12 @@ export function assemblePrompt(
       `Total findings: ${complexity.summary.totalFindings}`,
       `Complexity warnings: ${complexity.summary.complexityWarnings}`,
       `Max-lines warnings: ${complexity.summary.maxLinesWarnings}`,
-      `Top findings: ${complexity.findings
-        .slice(0, 5)
-        .map((f) => `${f.path}:${f.line} (${f.ruleId})`)
-        .join(", ") || "none"}`,
+      `Top findings: ${
+        complexity.findings
+          .slice(0, 5)
+          .map((f) => `${f.path}:${f.line} (${f.ruleId})`)
+          .join(", ") || "none"
+      }`,
     );
   }
 
@@ -97,7 +102,10 @@ export function assemblePrompt(
   }
 
   if (delta) {
-    lines.push("", "## Trend vs Previous Snapshot", describeDelta(delta));
+    const heading = deltaContextLabel
+      ? `## Trend ${deltaContextLabel}`
+      : "## Trend vs Previous Snapshot";
+    lines.push("", heading, describeDelta(delta));
   }
 
   lines.push(

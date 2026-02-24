@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
 import { runCollectors } from "../../collectors/index.js";
+import { pruneRepoArtifacts } from "../../retention.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 
 function timestampFolderName(date: Date): string {
@@ -77,6 +78,13 @@ async function collectForRepo(config: RepoConfig): Promise<void> {
   process.stdout.write(
     `Snapshot written to data/${config.slug}/snapshots/${snapshotTimestamp}/\n`,
   );
+
+  const pruned = await pruneRepoArtifacts(config);
+  if (pruned.snapshots.length > 0 || pruned.reports.length > 0) {
+    process.stdout.write(
+      `Pruned ${pruned.snapshots.length} snapshots and ${pruned.reports.length} reports for ${config.slug}\n`,
+    );
+  }
 }
 
 export async function runCollectCommand(repoSlug?: string): Promise<void> {

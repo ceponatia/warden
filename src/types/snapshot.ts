@@ -5,6 +5,11 @@ export interface RepoThresholds {
   directoryGrowthPct: number;
 }
 
+export interface RepoRetention {
+  snapshots: number;
+  reports: number;
+}
+
 export interface RepoConfig {
   slug: string;
   path: string;
@@ -15,6 +20,8 @@ export interface RepoConfig {
   ignorePatterns: string[];
   scopeFile?: string;
   thresholds: RepoThresholds;
+  retention: RepoRetention;
+  commitThreshold: number;
 }
 
 export type MetricTag =

@@ -14,8 +14,12 @@ pnpm warden --help
 
 - `warden init <path>`
 - `warden collect [--repo <slug>]`
-- `warden report [--repo <slug>] [--analyze]`
+- `warden report [--repo <slug>] [--analyze] [--compare <branch>]`
 - `warden analyze [--repo <slug>]`
+- `warden prune [--repo <slug>] [--keep <n>]`
+- `warden hook install [--repo <slug>]`
+- `warden hook uninstall [--repo <slug>]`
+- `warden hook tick --repo <slug>`
 
 ## AI Analysis
 
@@ -23,7 +27,13 @@ pnpm warden --help
 
 `warden report --analyze` generates the template report and then appends an AI analysis to stdout.
 
+`warden report --compare main` appends a cross-branch delta section by comparing the latest snapshot against the latest snapshot captured on `main`.
+
 Configure the provider via environment variables (see `.env.example`).
+
+## Scheduling
+
+Use cron/systemd/launchd examples in `docs/scheduling.md` to run Warden automatically on a weekly cadence.
 
 ## Scope config
 
