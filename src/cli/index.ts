@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { runAnalyzeCommand } from "./commands/analyze.js";
 import { runCollectCommand } from "./commands/collect.js";
 import { runInitCommand } from "./commands/init.js";
 import { runReportCommand } from "./commands/report.js";
@@ -9,7 +10,8 @@ function printHelp(): void {
   process.stdout.write(`Usage:\n`);
   process.stdout.write(`  warden init <path>\n`);
   process.stdout.write(`  warden collect [--repo <slug>]\n`);
-  process.stdout.write(`  warden report [--repo <slug>]\n`);
+  process.stdout.write(`  warden report [--repo <slug>] [--analyze]\n`);
+  process.stdout.write(`  warden analyze [--repo <slug>]\n`);
 }
 
 function getFlagValue(args: string[], flag: string): string | undefined {
@@ -47,7 +49,14 @@ async function main(): Promise<void> {
 
   if (command === "report") {
     const repoSlug = getFlagValue(rest, "--repo");
-    await runReportCommand(repoSlug);
+    const analyze = rest.includes("--analyze");
+    await runReportCommand(repoSlug, analyze);
+    return;
+  }
+
+  if (command === "analyze") {
+    const repoSlug = getFlagValue(rest, "--repo");
+    await runAnalyzeCommand(repoSlug);
     return;
   }
 

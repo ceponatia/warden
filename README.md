@@ -1,11 +1,12 @@
 # Warden
 
-Repo monitoring CLI that collects git stats, staleness, debt, complexity, import health, and runtime coverage into structured snapshots.
+Repo monitoring CLI that collects git stats, staleness, debt, complexity, import health, and runtime coverage into structured snapshots. Phase 2 adds AI-powered analysis via `warden analyze`.
 
 ## Setup
 
 ```bash
 pnpm install
+cp .env.example .env   # add your AI provider key
 pnpm warden --help
 ```
 
@@ -13,7 +14,16 @@ pnpm warden --help
 
 - `warden init <path>`
 - `warden collect [--repo <slug>]`
-- `warden report [--repo <slug>]`
+- `warden report [--repo <slug>] [--analyze]`
+- `warden analyze [--repo <slug>]`
+
+## AI Analysis
+
+`warden analyze` reads the latest snapshot for each configured repo, optionally computes a delta against the previous snapshot, and calls an AI provider to produce a prioritized maintenance report written to `data/<slug>/analyses/`.
+
+`warden report --analyze` generates the template report and then appends an AI analysis to stdout.
+
+Configure the provider via environment variables (see `.env.example`).
 
 ## Scope config
 
