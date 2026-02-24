@@ -5,3 +5,5 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+.env
+package-lock.json

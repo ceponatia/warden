@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
+import { runAnalysis } from "../../agents/runner.js";
 import { renderTemplateReport } from "../../reporter/template-report.js";
 import type {
   ComplexitySnapshot,
@@ -83,7 +84,10 @@ async function loadLatestSnapshot(config: RepoConfig): Promise<LoadedSnapshot> {
   };
 }
 
-async function renderReportForRepo(config: RepoConfig): Promise<void> {
+async function renderReportForRepo(
+  config: RepoConfig,
+  analyze: boolean,
+): Promise<void> {
   const snapshot = await loadLatestSnapshot(config);
   const report = renderTemplateReport(
     config,
@@ -110,9 +114,19 @@ async function renderReportForRepo(config: RepoConfig): Promise<void> {
   process.stdout.write(
     `Report written to data/${config.slug}/reports/${fileName}\n`,
   );
+
+  if (analyze) {
+    process.stdout.write(`\nRunning analysis for ${config.slug}...\n`);
+    const result = await runAnalysis(config);
+    process.stdout.write(result.analysis);
+    process.stdout.write("\n");
+  }
 }
 
-export async function runReportCommand(repoSlug?: string): Promise<void> {
+export async function runReportCommand(
+  repoSlug?: string,
+  analyze = false,
+): Promise<void> {
   const configs = await loadRepoConfigs();
   if (configs.length === 0) {
     throw new Error("No repos configured. Run 'warden init <path>' first.");
@@ -120,11 +134,11 @@ export async function runReportCommand(repoSlug?: string): Promise<void> {
 
   if (repoSlug) {
     const config = getRepoConfigBySlug(configs, repoSlug);
-    await renderReportForRepo(config);
+    await renderReportForRepo(config, analyze);
     return;
   }
 
   for (const config of configs) {
-    await renderReportForRepo(config);
+    await renderReportForRepo(config, analyze);
   }
 }
