@@ -1,4 +1,8 @@
-import type { RepoConfig, RepoThresholds } from "../types/snapshot.js";
+import type {
+  RepoConfig,
+  RepoRetention,
+  RepoThresholds,
+} from "../types/snapshot.js";
 
 export const DEFAULT_THRESHOLDS: RepoThresholds = {
   staleDays: 6,
@@ -6,6 +10,13 @@ export const DEFAULT_THRESHOLDS: RepoThresholds = {
   growthMultiplier: 2,
   directoryGrowthPct: 20,
 };
+
+export const DEFAULT_RETENTION: RepoRetention = {
+  snapshots: 10,
+  reports: 10,
+};
+
+export const DEFAULT_COMMIT_THRESHOLD = 25;
 
 function assertNonEmptyString(
   value: unknown,
@@ -53,6 +64,20 @@ function normalizeThresholds(
   };
 }
 
+function normalizeRetention(
+  rawRetention: Partial<RepoRetention> | undefined,
+): RepoRetention {
+  const source = rawRetention ?? DEFAULT_RETENTION;
+
+  return {
+    snapshots: resolvePositiveNumber(
+      source.snapshots,
+      DEFAULT_RETENTION.snapshots,
+    ),
+    reports: resolvePositiveNumber(source.reports, DEFAULT_RETENTION.reports),
+  };
+}
+
 export function normalizeRepoConfig(value: unknown): RepoConfig {
   if (typeof value !== "object" || value === null) {
     throw new Error("Invalid repo config entry");
@@ -63,6 +88,11 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
   assertNonEmptyString(raw.path, "path");
   assertNonEmptyString(raw.type, "type");
   const thresholds = normalizeThresholds(raw.thresholds);
+  const retention = normalizeRetention(raw.retention);
+  const commitThreshold = resolvePositiveNumber(
+    raw.commitThreshold,
+    DEFAULT_COMMIT_THRESHOLD,
+  );
 
   return {
     slug: raw.slug,
@@ -74,5 +104,7 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
     ignorePatterns: asStringArray(raw.ignorePatterns ?? [], "ignorePatterns"),
     scopeFile: typeof raw.scopeFile === "string" ? raw.scopeFile : undefined,
     thresholds,
+    retention,
+    commitThreshold,
   };
 }
