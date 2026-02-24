@@ -1,0 +1,13 @@
+# chatterbox allowlist
+# Repo-local .warden/allowlist takes precedence when present.
+
+# Intentional dead code retained for reference.
+[WD-M2-002]
+apps/web/src/lib/hooks/use-summarization.ts
+apps/web/src/lib/fact-processing.ts
+apps/web/src/lib/section-merge.ts
+apps/web/src/app/api/summarize/route.ts
+
+# Intentional module-scope mutable object in page.tsx.
+[WD-M6-002]
+apps/web/src/app/page.tsx:liveConfig

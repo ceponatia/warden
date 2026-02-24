@@ -2,6 +2,7 @@ import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { upsertRepoConfig } from "../../config/loader.js";
+import { ensureStarterAllowlist } from "../../config/allowlist.js";
 import {
   generateDefaultScopeFile,
   getDefaultScopeFilePath,
@@ -127,6 +128,7 @@ export async function runInitCommand(targetPath: string): Promise<void> {
   };
 
   await upsertRepoConfig(config);
+  const allowlistPath = await ensureStarterAllowlist(config);
   await generateDefaultScopeFile(
     getDefaultScopeFilePath(slug),
     gitIgnorePatterns,
@@ -148,5 +150,8 @@ export async function runInitCommand(targetPath: string): Promise<void> {
     `  Doc files: ${docFiles.join(", ") || "(none detected)"}\n`,
   );
   process.stdout.write(`  Scope file: ${scopeFile}\n`);
+  process.stdout.write(
+    `  Allowlist file: ${path.relative(process.cwd(), allowlistPath)}\n`,
+  );
   process.stdout.write(`  Config written to config/repos.json\n`);
 }

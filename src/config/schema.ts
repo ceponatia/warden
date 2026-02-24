@@ -3,12 +3,18 @@ import type {
   RepoRetention,
   RepoThresholds,
 } from "../types/snapshot.js";
+import type { RepoSuppression } from "../types/findings.js";
 
 export const DEFAULT_THRESHOLDS: RepoThresholds = {
-  staleDays: 6,
+  staleDays: 10,
   highChurnEdits: 5,
   growthMultiplier: 2,
   directoryGrowthPct: 20,
+  highRewriteRatio: 3,
+  complexityHotspotCount: 5,
+  largeFileGrowthLines: 300,
+  lowRouteHitCount: 2,
+  newFileClusterCount: 6,
 };
 
 export const DEFAULT_RETENTION: RepoRetention = {
@@ -61,7 +67,47 @@ function normalizeThresholds(
       source.directoryGrowthPct,
       DEFAULT_THRESHOLDS.directoryGrowthPct,
     ),
+    highRewriteRatio: resolvePositiveNumber(
+      source.highRewriteRatio,
+      DEFAULT_THRESHOLDS.highRewriteRatio,
+    ),
+    complexityHotspotCount: resolvePositiveNumber(
+      source.complexityHotspotCount,
+      DEFAULT_THRESHOLDS.complexityHotspotCount,
+    ),
+    largeFileGrowthLines: resolvePositiveNumber(
+      source.largeFileGrowthLines,
+      DEFAULT_THRESHOLDS.largeFileGrowthLines,
+    ),
+    lowRouteHitCount: resolvePositiveNumber(
+      source.lowRouteHitCount,
+      DEFAULT_THRESHOLDS.lowRouteHitCount,
+    ),
+    newFileClusterCount: resolvePositiveNumber(
+      source.newFileClusterCount,
+      DEFAULT_THRESHOLDS.newFileClusterCount,
+    ),
   };
+}
+
+function normalizeSuppressions(value: unknown): RepoSuppression[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (item): item is RepoSuppression =>
+        typeof item === "object" && item !== null,
+    )
+    .map((item) => ({
+      pattern: typeof item.pattern === "string" ? item.pattern : "",
+      codes: Array.isArray(item.codes)
+        ? item.codes.filter((code): code is string => typeof code === "string")
+        : [],
+      reason: typeof item.reason === "string" ? item.reason : undefined,
+    }))
+    .filter((item) => item.pattern.length > 0 && item.codes.length > 0);
 }
 
 function normalizeRetention(
@@ -106,5 +152,6 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
     thresholds,
     retention,
     commitThreshold,
+    suppressions: normalizeSuppressions(raw.suppressions),
   };
 }

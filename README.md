@@ -20,6 +20,8 @@ pnpm warden --help
 - `warden hook install [--repo <slug>]`
 - `warden hook uninstall [--repo <slug>]`
 - `warden hook tick --repo <slug>`
+- `warden wiki <WD-Mx-yyy>`
+- `warden mcp [--transport stdio|sse] [--port <n>]`
 
 ## AI Analysis
 
@@ -31,9 +33,38 @@ pnpm warden --help
 
 Configure the provider via environment variables (see `.env.example`).
 
+## Finding codes and wiki
+
+Phase 4 introduces stable finding codes (`WD-Mx-yyy`) and wiki pages in `wiki/`.
+
+- `warden report` includes code references in metric sections plus a finding-code summary.
+- `warden wiki <code>` prints the wiki page for a finding code.
+
+## Allowlists and suppressions
+
+- Global allowlist: `config/<slug>.allowlist`
+- Repo-local override: `<repo>/.warden/allowlist`
+
+Allowlist entries suppress specific finding codes for paths (or `path:symbol` entries).
+
+`config/repos.json` also supports `suppressions` for repo-managed pattern suppressions.
+
+## MCP server
+
+`warden mcp` starts an MCP server exposing Warden resources and tools.
+
+- Default transport: `stdio`
+- Optional HTTP streamable mode: `warden mcp --transport sse --port 3001`
+
+Resources include `warden://repos`, `warden://findings`, repo snapshot/report URIs, and `warden://wiki/{code}`.
+
 ## Scheduling
 
 Use cron/systemd/launchd examples in `docs/scheduling.md` to run Warden automatically on a weekly cadence.
+
+## Threshold tuning
+
+Threshold defaults and semantics are documented in `docs/thresholds.md`.
 
 ## Scope config
 

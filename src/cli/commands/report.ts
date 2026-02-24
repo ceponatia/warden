@@ -2,7 +2,12 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { computeDelta } from "../../agents/delta.js";
+import { loadAllowlist } from "../../config/allowlist.js";
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
+import {
+  evaluateFindings,
+  summarizeFindingsByCode,
+} from "../../findings/evaluate.js";
 import { runAnalysis } from "../../agents/runner.js";
 import { pruneReports } from "../../retention.js";
 import { renderTemplateReport } from "../../reporter/template-report.js";
@@ -45,12 +50,23 @@ function renderCompareSection(
   ].join("\n");
 }
 
+function renderFindingSummarySection(lines: string[]): string {
+  if (lines.length === 0) {
+    return "\n## Finding code summary\n- none\n";
+  }
+
+  return `\n## Finding code summary\n${lines.map((line) => `- ${line}`).join("\n")}\n`;
+}
+
 async function renderReportForRepo(
   config: RepoConfig,
   analyze: boolean,
   compareBranch?: string,
 ): Promise<void> {
   const snapshot = await loadLatestSnapshot(config.slug);
+  const allowlist = await loadAllowlist(config);
+  const activeFindings = evaluateFindings(config, snapshot, allowlist.rules);
+  const summaryLines = summarizeFindingsByCode(activeFindings);
   const baseReport = renderTemplateReport(
     config,
     snapshot.gitStats,
@@ -61,7 +77,7 @@ async function renderReportForRepo(
     snapshot.runtime ?? null,
   );
 
-  let report = baseReport;
+  let report = `${baseReport}${renderFindingSummarySection(summaryLines)}`;
   if (compareBranch) {
     const baseline = await loadLatestSnapshotForBranch(
       config.slug,
