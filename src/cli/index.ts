@@ -31,10 +31,9 @@ function getFlagValue(args: string[], flag: string): string | undefined {
   return args[flagIndex + 1];
 }
 
-function parseHookAction(value: string | undefined):
-  | "install"
-  | "uninstall"
-  | "tick" {
+function parseHookAction(
+  value: string | undefined,
+): "install" | "uninstall" | "tick" {
   if (value === "install" || value === "uninstall" || value === "tick") {
     return value;
   }
