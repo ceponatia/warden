@@ -372,14 +372,14 @@ async function renderAgentsView(slug: string): Promise<string> {
   const trustRows = trust
     .map(
       (t) =>
-        `<tr><td>${t.agentName}</td><td>${(t.validationPassRate * 100).toFixed(1)}%</td><td>${t.consecutiveCleanMerges}</td><td>${t.totalRuns}</td></tr>`,
+        `<tr><td>${escapeHtml(t.agentName)}</td><td>${(t.validationPassRate * 100).toFixed(1)}%</td><td>${t.consecutiveCleanMerges}</td><td>${t.totalRuns}</td></tr>`,
     )
     .join("");
 
   const activityRows = agentDocs
     .map(
       (d) =>
-        `<tr><td>${d.assignedTo}</td><td>${d.code}</td><td>${d.status}</td><td>${d.relatedBranch ?? "-"}</td><td>${d.validationResult?.passed ?? "-"}</td><td>${d.validationResult?.attempts ?? "-"}</td></tr>`,
+        `<tr><td>${escapeHtml(d.assignedTo!)}</td><td>${escapeHtml(d.code)}</td><td>${escapeHtml(d.status)}</td><td>${escapeHtml(d.relatedBranch ?? "-")}</td><td>${d.validationResult?.passed ?? "-"}</td><td>${d.validationResult?.attempts ?? "-"}</td></tr>`,
     )
     .join("");
 
