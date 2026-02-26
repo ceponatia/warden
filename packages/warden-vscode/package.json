@@ -1,0 +1,118 @@
+{
+    "name": "warden-vscode",
+    "displayName": "Warden",
+    "description": "Surface Warden findings in VS Code diagnostics, tree view, and wiki hovers.",
+    "version": "0.1.0",
+    "publisher": "ceponatia",
+    "private": true,
+    "engines": {
+        "vscode": "^1.99.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "warden.refresh",
+                "title": "Warden: Refresh"
+            },
+            {
+                "command": "warden.openReport",
+                "title": "Warden: Open Latest Report"
+            },
+            {
+                "command": "warden.openWiki",
+                "title": "Warden: Open Wiki Page"
+            },
+            {
+                "command": "warden.workStatus",
+                "title": "Warden: Update Work Status"
+            },
+            {
+                "command": "warden.workNote",
+                "title": "Warden: Add Work Note"
+            },
+            {
+                "command": "warden.runCollect",
+                "title": "Warden: Run Collect"
+            },
+            {
+                "command": "warden.runAnalyze",
+                "title": "Warden: Run Analyze"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "warden",
+                    "title": "Warden",
+                    "icon": "media/warden.svg"
+                }
+            ]
+        },
+        "views": {
+            "warden": [
+                {
+                    "id": "warden.findings",
+                    "name": "Findings",
+                    "icon": "media/warden.svg"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "Warden",
+            "properties": {
+                "warden.dataPath": {
+                    "type": "string",
+                    "default": "data",
+                    "description": "Path to Warden data directory."
+                },
+                "warden.repoSlug": {
+                    "type": "string",
+                    "default": "auto-detect",
+                    "description": "Repository slug to display, or auto-detect."
+                },
+                "warden.autoRefresh": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Watch report files and refresh automatically."
+                },
+                "warden.severityFilter": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "S0",
+                            "S1",
+                            "S2",
+                            "S3",
+                            "S4",
+                            "S5"
+                        ]
+                    },
+                    "default": [
+                        "S0",
+                        "S1",
+                        "S2",
+                        "S3"
+                    ],
+                    "description": "Severity levels shown in Diagnostics."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "watch": "tsc -p tsconfig.json --watch"
+    },
+    "devDependencies": {
+        "@types/node": "^22.13.10",
+        "@types/vscode": "^1.99.0",
+        "typescript": "^5.8.2"
+    }
+}
