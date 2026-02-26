@@ -105,7 +105,7 @@ async function renderOverview(): Promise<string> {
         : 0;
 
       return `<tr>
-        <td><a href="/repo/${repo.slug}">${repo.slug}</a></td>
+        <td><a href="/repo/${encodeURIComponent(repo.slug)}">${escapeHtml(repo.slug)}</a></td>
         <td>${escapeHtml(latest)}</td>
         <td>${report?.findings.length ?? 0}</td>
         <td>${criticalCount}</td>
