@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import * as vscode from "vscode";
@@ -59,7 +59,16 @@ async function saveWorkDocument(
   settings: RepoSettings,
   doc: WorkDocument,
 ): Promise<void> {
-  const filePath = path.join(workDir(settings), `${doc.findingId}.json`);
+  if (
+    doc.findingId.includes("..") ||
+    doc.findingId.includes("/") ||
+    doc.findingId.includes("\\")
+  ) {
+    throw new Error("Invalid findingId");
+  }
+  const dir = workDir(settings);
+  await mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, `${doc.findingId}.json`);
   await writeFile(filePath, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
 }
 
@@ -85,10 +94,27 @@ async function pickWorkDocument(
   return choice?.doc ?? null;
 }
 
+function shellEscape(arg: string): string {
+  if (process.platform === "win32") {
+    // Windows cmd/PowerShell: double-quote with proper escaping.
+    // Backslashes immediately preceding a quote (or end of string) must be doubled.
+    const escaped = arg
+      .replace(/(\\*)"/, (_m, slashes: string) => `${slashes}${slashes}\\"`)
+      .replace(/(\\*)$/, (_m, slashes: string) => `${slashes}${slashes}`);
+    return `"${escaped}"`;
+  }
+  // POSIX shells: wrap in single quotes and escape internal single quotes
+  if (arg === "") {
+    return "''";
+  }
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+
 function runWardenCommand(args: string[]): void {
   const terminal = vscode.window.createTerminal({ name: "Warden" });
   terminal.show(true);
-  terminal.sendText(`pnpm warden ${args.join(" ")}`);
+  const safeArgs = args.map(shellEscape).join(" ");
+  terminal.sendText(`pnpm warden ${safeArgs}`);
 }
 
 export interface CommandContext {

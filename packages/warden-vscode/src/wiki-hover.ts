@@ -5,7 +5,7 @@ import type { WikiEntry } from "./types";
 const FINDING_CODE = /WD-M\d-\d{3}/g;
 
 function inRange(index: number, start: number, end: number): boolean {
-  return index >= start && index <= end;
+  return index >= start && index < end;
 }
 
 function findCodeAtPosition(line: string, position: number): string | null {
@@ -37,11 +37,13 @@ export function createWikiHoverProvider(
       }
 
       const markdown = new vscode.MarkdownString();
-      markdown.appendMarkdown(`**${entry.code}** — ${entry.description}\n\n`);
+      markdown.appendMarkdown(`**${entry.code}** — `);
+      markdown.appendText(entry.description);
+      markdown.appendMarkdown("\n\n");
       markdown.appendMarkdown(
         `[Open wiki page](command:warden.openWiki?${encodeURIComponent(JSON.stringify([entry.code]))})`,
       );
-      markdown.isTrusted = true;
+      markdown.isTrusted = { enabledCommands: ["warden.openWiki"] };
       return new vscode.Hover(markdown);
     },
   };

@@ -94,7 +94,7 @@ function rootNodes(report: StructuredReport): Node[] {
       label: "Trust Scores",
       children: report.trustScores.map((trust) => ({
         kind: "trust",
-        label: `${trust.agentName}: ${Math.round(trust.validationPassRate)}% pass rate`,
+        label: `${trust.agentName}: ${Math.round(trust.validationPassRate * 100)}% pass rate`,
       })),
     },
   ];
