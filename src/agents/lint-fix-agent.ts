@@ -6,6 +6,7 @@ import path from "node:path";
 import type { RepoConfig } from "../types/snapshot.js";
 import type { WorkDocument } from "../types/work.js";
 import { addNote } from "../work/manager.js";
+import { tryAutoMergeForWorkDocument } from "../work/autonomy.js";
 import { recordValidationResult } from "../work/trust.js";
 import { callProvider } from "./provider.js";
 
@@ -153,12 +154,7 @@ export async function runLintFixAgent(
     const result = await runValidation(config.path);
     if (result.passed) {
       passed = true;
-      await commitAndReturn(
-        config.path,
-        doc.path,
-        branchName,
-        originalBranch,
-      );
+      await commitAndReturn(config.path, doc.path, branchName, originalBranch);
       break;
     }
 
@@ -204,6 +200,22 @@ export async function runLintFixAgent(
       "lint-fix-agent",
       `Fix applied on branch ${branchName}. Validation passed (attempt ${attempts}).`,
     );
+
+    const autoMergeResult = await tryAutoMergeForWorkDocument({
+      slug: config.slug,
+      repoPath: config.path,
+      doc,
+      agentName: "lint-fix-agent",
+      sourceBranch: branchName,
+      targetBranch: originalBranch,
+    });
+    if (!autoMergeResult.merged) {
+      addNote(
+        doc,
+        "autonomy",
+        `Draft branch retained for review: ${branchName}`,
+      );
+    }
   } else {
     doc.status = "blocked";
     addNote(

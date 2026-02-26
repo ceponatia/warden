@@ -1,5 +1,5 @@
 import type { FindingMetric } from "./findings.js";
-import type { Severity, TrustMetrics } from "./work.js";
+import type { MergeImpactRecord, Severity, TrustMetrics } from "./work.js";
 
 export interface StructuredReport {
   timestamp: string;
@@ -9,6 +9,7 @@ export interface StructuredReport {
   workDocumentSummary: WorkDocumentSummary;
   agentActivity: AgentActivityEntry[];
   trustScores: TrustMetrics[];
+  autoMergeActivity: AutoMergeActivity;
   improvements: string[];
   metricSnapshots: {
     /** Files changed in the 7-day git window (not a repo-wide total). */
@@ -20,6 +21,25 @@ export interface StructuredReport {
     complexityFindings: number;
     boundaryViolations: number;
   };
+}
+
+export interface AutoMergeActivity {
+  activeGrants: AutoMergeGrant[];
+  recentAutoMerges: MergeImpactRecord[];
+  revocations: AutoMergeRevocation[];
+}
+
+export interface AutoMergeGrant {
+  agentName: string;
+  allowedCodes: string[] | null;
+  maxSeverity: Severity;
+  grantedAt: string;
+}
+
+export interface AutoMergeRevocation {
+  agentName: string;
+  revokedAt: string;
+  reason: string;
 }
 
 export interface StructuredFinding {

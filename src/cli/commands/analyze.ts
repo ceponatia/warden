@@ -3,9 +3,12 @@ import path from "node:path";
 
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
 import { runAnalysis } from "../../agents/runner.js";
+import { loadAutonomyConfig } from "../../work/autonomy.js";
+import { loadImpactRecords } from "../../work/impact.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 import type {
   AgentActivityEntry,
+  AutoMergeActivity,
   StructuredFinding,
   StructuredReport,
 } from "../../types/report.js";
@@ -61,7 +64,10 @@ async function analyzeRepo(config: RepoConfig): Promise<void> {
   // Each report run produces 2 files (.md + .json); prune to keep the configured
   // number of complete runs.
   const FILES_PER_REPORT_RUN = 2;
-  await pruneReports(config.slug, config.retention.reports * FILES_PER_REPORT_RUN);
+  await pruneReports(
+    config.slug,
+    config.retention.reports * FILES_PER_REPORT_RUN,
+  );
 
   process.stdout.write(result.analysis);
   process.stdout.write("\n");
@@ -157,6 +163,27 @@ async function buildStructuredReport(
 ): Promise<StructuredReport> {
   const workDocs = await loadWorkDocuments(config.slug);
   const trustScores = await loadAllTrustMetrics(config.slug);
+  const autonomyConfig = await loadAutonomyConfig(config.slug);
+  const impactRecords = await loadImpactRecords(config.slug);
+  const autoMergeActivity: AutoMergeActivity = {
+    activeGrants: autonomyConfig.rules
+      .filter((rule) => rule.enabled)
+      .map((rule) => ({
+        agentName: rule.agentName,
+        allowedCodes: rule.allowedCodes ?? null,
+        maxSeverity:
+          rule.maxSeverity ?? autonomyConfig.globalDefaults.maxSeverity,
+        grantedAt: rule.grantedAt,
+      })),
+    recentAutoMerges: impactRecords.slice(0, 20),
+    revocations: autonomyConfig.rules
+      .filter((rule) => Boolean(rule.revokedAt))
+      .map((rule) => ({
+        agentName: rule.agentName,
+        revokedAt: rule.revokedAt ?? "",
+        reason: rule.revocationReason ?? "revoked",
+      })),
+  };
 
   return {
     timestamp,
@@ -166,6 +193,7 @@ async function buildStructuredReport(
     workDocumentSummary: buildWorkSummary(workDocs, result.workDocumentSummary),
     agentActivity: buildAgentActivity(workDocs),
     trustScores,
+    autoMergeActivity,
     improvements: result.improvements,
     metricSnapshots: buildMetricSnapshots(result),
   };

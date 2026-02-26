@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { runAnalyzeCommand } from "./commands/analyze.js";
+import { runAutonomyCommand } from "./commands/autonomy.js";
 import { runCollectCommand } from "./commands/collect.js";
 import { runDashboardCommand } from "./commands/dashboard.js";
 import { runHookCommand } from "./commands/hook.js";
@@ -20,6 +21,7 @@ function printHelp(): void {
     `  warden report [--repo <slug>] [--analyze] [--compare <branch>]\n`,
   );
   process.stdout.write(`  warden analyze [--repo <slug>]\n`);
+  process.stdout.write(`  warden autonomy <grant|revoke|list|impact> ...\n`);
   process.stdout.write(`  warden dashboard [--port <n>]\n`);
   process.stdout.write(`  warden prune [--repo <slug>] [--keep <n>]\n`);
   process.stdout.write(`  warden hook install [--repo <slug>]\n`);
@@ -78,6 +80,9 @@ function createCommandHandlers(): Record<string, CommandHandler> {
     analyze: async (rest: string[]) => {
       const repoSlug = getFlagValue(rest, "--repo");
       await runAnalyzeCommand(repoSlug);
+    },
+    autonomy: async (rest: string[]) => {
+      await runAutonomyCommand(rest);
     },
     dashboard: async (rest: string[]) => {
       const port = getFlagValue(rest, "--port");
