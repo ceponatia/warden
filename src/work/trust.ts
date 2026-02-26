@@ -34,8 +34,12 @@ export async function loadTrustMetrics(
   try {
     const raw = await readFile(trustPath(slug, agentName), "utf8");
     return JSON.parse(raw) as TrustMetrics;
-  } catch {
-    return createEmptyMetrics(agentName);
+  } catch (error: unknown) {
+    const err = error as NodeJS.ErrnoException;
+    if (err && err.code === "ENOENT") {
+      return createEmptyMetrics(agentName);
+    }
+    throw error;
   }
 }
 
@@ -110,8 +114,12 @@ export async function loadAllTrustMetrics(
 
   const results: TrustMetrics[] = [];
   for (const entry of entries) {
-    const raw = await readFile(path.join(dir, entry), "utf8");
-    results.push(JSON.parse(raw) as TrustMetrics);
+    try {
+      const raw = await readFile(path.join(dir, entry), "utf8");
+      results.push(JSON.parse(raw) as TrustMetrics);
+    } catch {
+      // Skip files that cannot be read or parsed
+    }
   }
   return results;
 }

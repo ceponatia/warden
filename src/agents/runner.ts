@@ -125,8 +125,9 @@ async function handleEscalations(slug: string): Promise<string[]> {
         `${doc.code} escalated to S1 after ${doc.consecutiveReports} reports. Plan: ${doc.planDocument}`,
       );
     } catch {
+      doc.status = "blocked";
       addNote(doc, "warden", "Planning agent dispatch failed.");
-      messages.push(`${doc.code} escalated but planning agent failed.`);
+      messages.push(`${doc.code} escalated but planning agent failed; marking as blocked.`);
     }
     await saveWorkDocument(slug, doc);
   }

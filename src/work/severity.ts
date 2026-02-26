@@ -74,11 +74,11 @@ export function computeTrend(
     return "new";
   }
 
-  // Compare summary text to detect metric changes.
-  // Findings embed numeric values in their summary strings.
-  const prevNumbers = extractNumbers(
-    doc.notes[doc.notes.length - 1]?.text ?? "",
-  );
+  // Only compare against the last "Report update:" note to avoid using
+  // the initial severity note text as a metric value.
+  const reportNotes = doc.notes.filter((n) => n.text.startsWith("Report update:"));
+  const lastReportNote = reportNotes[reportNotes.length - 1];
+  const prevNumbers = extractNumbers(lastReportNote?.text ?? "");
   const currNumbers = extractNumbers(currentFinding.summary);
 
   if (prevNumbers.length === 0 || currNumbers.length === 0) {

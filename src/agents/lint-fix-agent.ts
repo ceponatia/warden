@@ -155,7 +155,7 @@ export async function runLintFixAgent(
       passed = true;
       await commitAndReturn(
         config.path,
-        absolutePath,
+        doc.path,
         branchName,
         originalBranch,
       );
