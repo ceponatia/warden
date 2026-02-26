@@ -16,6 +16,7 @@ pnpm warden --help
 - `warden collect [--repo <slug>]`
 - `warden report [--repo <slug>] [--analyze] [--compare <branch>]`
 - `warden analyze [--repo <slug>]`
+- `warden dashboard [--port <n>]`
 - `warden prune [--repo <slug>] [--keep <n>]`
 - `warden hook install [--repo <slug>]`
 - `warden hook uninstall [--repo <slug>]`
@@ -32,6 +33,33 @@ pnpm warden --help
 `warden report --compare main` appends a cross-branch delta section by comparing the latest snapshot against the latest snapshot captured on `main`.
 
 Configure the provider via environment variables (see `.env.example`).
+
+## Web dashboard
+
+Start the local dashboard server:
+
+```bash
+pnpm warden dashboard
+```
+
+By default, it runs at `http://localhost:3333`.
+
+Use a custom port:
+
+```bash
+pnpm warden dashboard --port 4000
+```
+
+Main routes:
+
+- `/` — multi-repo overview
+- `/repo/:slug` — repo detail view
+- `/repo/:slug/trends` — trend charts
+- `/repo/:slug/work` — work document manager
+- `/repo/:slug/agents` — agent activity + trust scores
+- `/wiki` and `/wiki/:code` — wiki browser
+
+The dashboard reads data from `data/<slug>/reports`, `data/<slug>/work`, `data/<slug>/trust`, and `wiki/`. Run `warden analyze` (and `warden collect` as needed) to refresh dashboard data.
 
 ## Finding codes and wiki
 
