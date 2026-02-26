@@ -13,6 +13,7 @@ import type { Severity } from "../../types/work.js";
 import { assignInitialSeverity } from "../../work/severity.js";
 import { generateFindingId, loadWorkDocuments } from "../../work/manager.js";
 import { loadAllTrustMetrics } from "../../work/trust.js";
+import { pruneReports } from "../../retention.js";
 
 function timestampFileName(date: Date): string {
   return date.toISOString().replace(/:/g, "-").replace(/\..+$/, "");
@@ -56,6 +57,11 @@ async function analyzeRepo(config: RepoConfig): Promise<void> {
     `${JSON.stringify(structuredReport, null, 2)}\n`,
     "utf8",
   );
+
+  // Each report run produces 2 files (.md + .json); prune to keep the configured
+  // number of complete runs.
+  const FILES_PER_REPORT_RUN = 2;
+  await pruneReports(config.slug, config.retention.reports * FILES_PER_REPORT_RUN);
 
   process.stdout.write(result.analysis);
   process.stdout.write("\n");
@@ -120,17 +126,10 @@ function buildWorkSummary(
     agentInProgress: workDocs.filter((d) => d.status === "agent-in-progress")
       .length,
     agentComplete: summary?.agentComplete ?? 0,
+    pmReview: workDocs.filter((d) => d.status === "pm-review").length,
     blocked: summary?.blocked ?? 0,
     resolvedThisReport: summary?.resolvedThisRun ?? 0,
-    // Include pm-review status so active work in PM review is not undercounted.
-    pmReview:
-      // Prefer the runner-provided summary if available, otherwise derive from workDocs.
-      (summary as any)?.pmReview ??
-      workDocs.filter((d) => d.status === "pm-review").length,
-    // Expose an overall active total to match runner and avoid dashboard undercount.
-    totalActive:
-      (summary as any)?.totalActive ??
-      workDocs.length,
+    totalActive: workDocs.length,
   };
 }
 
@@ -138,12 +137,12 @@ function buildMetricSnapshots(
   result: Awaited<ReturnType<typeof runAnalysis>>,
 ): StructuredReport["metricSnapshots"] {
   const git7d = result.snapshot.gitStats.windows["7d"];
-  const totalLoc = git7d.totalLinesAdded + git7d.totalLinesRemoved;
+  const locChurnIn7d = git7d.totalLinesAdded + git7d.totalLinesRemoved;
   const boundaryViolations = result.snapshot.imports?.summary.deepImports ?? 0;
 
   return {
-    totalFiles: git7d.totalFilesChanged,
-    totalLoc,
+    filesChangedIn7d: git7d.totalFilesChanged,
+    locChurnIn7d,
     staleFileCount: result.snapshot.staleness.staleFiles.length,
     todoCount: result.snapshot.debtMarkers.summary.totalTodos,
     complexityFindings: result.snapshot.complexity?.summary.totalFindings ?? 0,

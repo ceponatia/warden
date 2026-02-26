@@ -1,9 +1,9 @@
 function nav(slug?: string): string {
   const repoLinks = slug
-    ? `<a href="/repo/${slug}">Repo</a>
-       <a href="/repo/${slug}/trends">Trends</a>
-       <a href="/repo/${slug}/work">Work</a>
-       <a href="/repo/${slug}/agents">Agents</a>`
+    ? `<a href="/repo/${encodeURIComponent(slug)}">Repo</a>
+       <a href="/repo/${encodeURIComponent(slug)}/trends">Trends</a>
+       <a href="/repo/${encodeURIComponent(slug)}/work">Work</a>
+       <a href="/repo/${encodeURIComponent(slug)}/agents">Agents</a>`
     : "";
 
   return `<nav>
@@ -14,17 +14,18 @@ function nav(slug?: string): string {
 }
 
 export function renderPage(title: string, body: string, slug?: string): string {
+  const safeTitle = escapeHtml(title);
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
+    <title>${safeTitle}</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
     <main>
-      <h1>${title}</h1>
+      <h1>${safeTitle}</h1>
       ${nav(slug)}
       ${body}
     </main>
