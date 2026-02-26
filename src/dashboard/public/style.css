@@ -1,0 +1,124 @@
+body {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  color: #111827;
+  background: #f9fafb;
+}
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background: #fff;
+}
+th,
+td {
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.badge-s1,
+.badge-s0 {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.badge-s2,
+.badge-s3 {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-s4,
+.badge-s5 {
+  background: #dcfce7;
+  color: #166534;
+}
+nav {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+form.inline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+input,
+select,
+button,
+textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+}
+textarea {
+  width: 260px;
+  min-height: 60px;
+}
+button {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  cursor: pointer;
+}
+button:hover {
+  background: #1d4ed8;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 12px;
+  border-radius: 6px;
+  overflow: auto;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.kpi {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+.kpi .label {
+  color: #6b7280;
+  font-size: 12px;
+}
+.kpi .value {
+  font-size: 22px;
+  font-weight: 700;
+}

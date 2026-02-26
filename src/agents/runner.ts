@@ -3,6 +3,7 @@ import { evaluateFindings } from "../findings/evaluate.js";
 import type { FindingInstance } from "../types/findings.js";
 import type { RepoConfig } from "../types/snapshot.js";
 import type { WorkDocument } from "../types/work.js";
+import type { LoadedSnapshot } from "../snapshots.js";
 import {
   loadLatestSnapshot,
   loadLatestSnapshotForBranch,
@@ -32,6 +33,9 @@ import { callProvider } from "./provider.js";
 export interface AnalysisResult {
   analysis: string;
   snapshotTimestamp: string;
+  snapshot: LoadedSnapshot;
+  findings: FindingInstance[];
+  improvements: string[];
   workDocumentSummary?: WorkDocumentSummary;
 }
 
@@ -135,7 +139,9 @@ async function handleEscalations(slug: string): Promise<string[]> {
     } catch {
       doc.status = "blocked";
       addNote(doc, "warden", "Planning agent dispatch failed.");
-      messages.push(`${doc.code} escalated but planning agent failed; marking as blocked.`);
+      messages.push(
+        `${doc.code} escalated but planning agent failed; marking as blocked.`,
+      );
     }
     await saveWorkDocument(slug, doc);
   }
@@ -218,6 +224,16 @@ async function updateWikiForResolved(
   }
 }
 
+function findResolvedCodes(
+  baselineFindings: FindingInstance[],
+  currentFindings: FindingInstance[],
+): string[] {
+  const currentCodes = new Set(currentFindings.map((f) => f.code));
+  return [...new Set(baselineFindings.map((f) => f.code))]
+    .filter((code) => !currentCodes.has(code))
+    .slice(0, 5);
+}
+
 export async function runAnalysis(
   config: RepoConfig,
   options?: AnalysisOptions,
@@ -275,16 +291,35 @@ export async function runAnalysis(
   });
 
   if (baselineFindings.length > 0) {
+    const improvements = findResolvedCodes(baselineFindings, currentFindings);
     await updateWikiForResolved(
       baselineFindings,
       currentFindings,
       deltaContextLabel,
       delta,
     );
+    const workStatusSection = renderWorkDocumentStatus(workDocumentSummary);
+    const fullAnalysis = `${analysis}\n\n${workStatusSection}`;
+
+    return {
+      analysis: fullAnalysis,
+      snapshotTimestamp,
+      snapshot: currentSnapshot,
+      findings: currentFindings,
+      improvements,
+      workDocumentSummary,
+    };
   }
 
   const workStatusSection = renderWorkDocumentStatus(workDocumentSummary);
   const fullAnalysis = `${analysis}\n\n${workStatusSection}`;
 
-  return { analysis: fullAnalysis, snapshotTimestamp, workDocumentSummary };
+  return {
+    analysis: fullAnalysis,
+    snapshotTimestamp,
+    snapshot: currentSnapshot,
+    findings: currentFindings,
+    improvements: [],
+    workDocumentSummary,
+  };
 }

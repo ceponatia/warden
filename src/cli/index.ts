@@ -2,6 +2,7 @@
 
 import { runAnalyzeCommand } from "./commands/analyze.js";
 import { runCollectCommand } from "./commands/collect.js";
+import { runDashboardCommand } from "./commands/dashboard.js";
 import { runHookCommand } from "./commands/hook.js";
 import { runInitCommand } from "./commands/init.js";
 import { runMcpCommand } from "./commands/mcp.js";
@@ -19,6 +20,7 @@ function printHelp(): void {
     `  warden report [--repo <slug>] [--analyze] [--compare <branch>]\n`,
   );
   process.stdout.write(`  warden analyze [--repo <slug>]\n`);
+  process.stdout.write(`  warden dashboard [--port <n>]\n`);
   process.stdout.write(`  warden prune [--repo <slug>] [--keep <n>]\n`);
   process.stdout.write(`  warden hook install [--repo <slug>]\n`);
   process.stdout.write(`  warden hook uninstall [--repo <slug>]\n`);
@@ -76,6 +78,10 @@ function createCommandHandlers(): Record<string, CommandHandler> {
     analyze: async (rest: string[]) => {
       const repoSlug = getFlagValue(rest, "--repo");
       await runAnalyzeCommand(repoSlug);
+    },
+    dashboard: async (rest: string[]) => {
+      const port = getFlagValue(rest, "--port");
+      await runDashboardCommand(port);
     },
     prune: async (rest: string[]) => {
       const repoSlug = getFlagValue(rest, "--repo");
