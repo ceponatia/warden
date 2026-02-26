@@ -122,6 +122,15 @@ function buildWorkSummary(
     agentComplete: summary?.agentComplete ?? 0,
     blocked: summary?.blocked ?? 0,
     resolvedThisReport: summary?.resolvedThisRun ?? 0,
+    // Include pm-review status so active work in PM review is not undercounted.
+    pmReview:
+      // Prefer the runner-provided summary if available, otherwise derive from workDocs.
+      (summary as any)?.pmReview ??
+      workDocs.filter((d) => d.status === "pm-review").length,
+    // Expose an overall active total to match runner and avoid dashboard undercount.
+    totalActive:
+      (summary as any)?.totalActive ??
+      workDocs.length,
   };
 }
 
