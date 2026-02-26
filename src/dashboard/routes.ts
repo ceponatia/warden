@@ -351,8 +351,8 @@ async function renderWorkView(
     `Work Documents: ${slug}`,
     `<div class="card">
       <form class="inline" method="get">
-        <label>Status <input name="status" value="${statusFilter}" /></label>
-        <label>Severity <input name="severity" value="${severityFilter}" /></label>
+        <label>Status <input name="status" value="${escapeHtml(statusFilter)}" /></label>
+        <label>Severity <input name="severity" value="${escapeHtml(severityFilter)}" /></label>
         <button type="submit">Filter</button>
       </form>
     </div>
