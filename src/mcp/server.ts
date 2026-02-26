@@ -12,9 +12,15 @@ import { readResourceByUri } from "./resources.js";
 import {
   toolAnalyze,
   toolCollect,
+  toolGetPlan,
+  toolGetWorkDoc,
+  toolListPlans,
   toolListRepos,
+  toolListWorkDocs,
   toolReport,
   toolSnapshotDiff,
+  toolTrustScores,
+  toolUpdateWorkStatus,
   toolWikiLookup,
 } from "./tools.js";
 
@@ -124,7 +130,7 @@ function registerTemplatedResources(server: McpServer): void {
   );
 }
 
-function registerTools(server: McpServer): void {
+function registerCoreTools(server: McpServer): void {
   server.registerTool(
     "warden_list_repos",
     { description: "List registered repos" },
@@ -202,6 +208,90 @@ function registerTools(server: McpServer): void {
   );
 }
 
+function registerWorkDocTools(server: McpServer): void {
+  server.registerTool(
+    "warden_list_work_docs",
+    {
+      description: "List active work documents for a repo",
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
+    },
+    async ({ repo }) => ({
+      content: [{ type: "text", text: await toolListWorkDocs(repo) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_get_work_doc",
+    {
+      description: "Get details of a specific work document",
+      inputSchema: z.object({
+        repo: z.string().describe("Repo slug"),
+        findingId: z.string().describe("Work document finding ID"),
+      }),
+    },
+    async ({ repo, findingId }) => ({
+      content: [{ type: "text", text: await toolGetWorkDoc(repo, findingId) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_update_work_status",
+    {
+      description: "Update status/notes on a work document",
+      inputSchema: z.object({
+        repo: z.string().describe("Repo slug"),
+        findingId: z.string().describe("Work document finding ID"),
+        status: z.string().optional().describe("New status"),
+        note: z.string().optional().describe("Note to add"),
+      }),
+    },
+    async ({ repo, findingId, status, note }) => ({
+      content: [
+        {
+          type: "text",
+          text: await toolUpdateWorkStatus(repo, findingId, status, note),
+        },
+      ],
+    }),
+  );
+
+  server.registerTool(
+    "warden_list_plans",
+    {
+      description: "List generated plan documents for a repo",
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
+    },
+    async ({ repo }) => ({
+      content: [{ type: "text", text: await toolListPlans(repo) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_get_plan",
+    {
+      description: "Read a specific plan document",
+      inputSchema: z.object({
+        repo: z.string().describe("Repo slug"),
+        findingId: z.string().describe("Finding ID for the plan"),
+      }),
+    },
+    async ({ repo, findingId }) => ({
+      content: [{ type: "text", text: await toolGetPlan(repo, findingId) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_trust_scores",
+    {
+      description: "Get trust metrics for all agents",
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
+    },
+    async ({ repo }) => ({
+      content: [{ type: "text", text: await toolTrustScores(repo) }],
+    }),
+  );
+}
+
 function createWardenMcpServer(): McpServer {
   const server = new McpServer({
     name: "warden-mcp",
@@ -209,7 +299,8 @@ function createWardenMcpServer(): McpServer {
   });
   registerStaticResources(server);
   registerTemplatedResources(server);
-  registerTools(server);
+  registerCoreTools(server);
+  registerWorkDocTools(server);
 
   return server;
 }

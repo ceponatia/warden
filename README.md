@@ -82,4 +82,4 @@ Threshold defaults and semantics are documented in `docs/thresholds.md`.
 
 See `docs/v8-coverage-dev-session.md` for the dev workflow used by `collect-runtime`.
 
-See `IM06-warden-phase-1.md` for the implementation sequence.
+See `PH01-warden-phase-1.md` for the implementation sequence.

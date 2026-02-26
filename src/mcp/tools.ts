@@ -8,6 +8,14 @@ import { runCollectCommand } from "../cli/commands/collect.js";
 import { runReportCommand } from "../cli/commands/report.js";
 import { lookupCode } from "../findings/registry.js";
 import { loadSnapshotByTimestamp, loadLatestSnapshot } from "../snapshots.js";
+import {
+  loadWorkDocuments,
+  loadWorkDocument,
+  saveWorkDocument,
+  addNote,
+} from "../work/manager.js";
+import { loadAllTrustMetrics } from "../work/trust.js";
+import type { WorkDocumentStatus } from "../types/work.js";
 
 function ensureSlug(slug: string | undefined): string {
   if (!slug || slug.trim().length === 0) {
@@ -16,6 +24,27 @@ function ensureSlug(slug: string | undefined): string {
 
   return slug;
 }
+
+function validateFindingId(findingId: string): void {
+  if (
+    findingId.includes("..") ||
+    findingId.includes("/") ||
+    findingId.includes("\\")
+  ) {
+    throw new Error("Invalid findingId");
+  }
+}
+
+const VALID_STATUSES: WorkDocumentStatus[] = [
+  "unassigned",
+  "auto-assigned",
+  "agent-in-progress",
+  "agent-complete",
+  "pm-review",
+  "blocked",
+  "resolved",
+  "wont-fix",
+];
 
 export async function toolListRepos(): Promise<string> {
   const repos = await loadRepoConfigs();
@@ -97,4 +126,115 @@ export async function toolSnapshotDiff(
     null,
     2,
   );
+}
+
+export async function toolListWorkDocs(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const docs = await loadWorkDocuments(repoSlug);
+  const active = docs.filter(
+    (d) => d.status !== "resolved" && d.status !== "wont-fix",
+  );
+  return JSON.stringify(
+    active.map((d) => ({
+      findingId: d.findingId,
+      code: d.code,
+      severity: d.severity,
+      status: d.status,
+      consecutiveReports: d.consecutiveReports,
+      trend: d.trend,
+      path: d.path,
+    })),
+    null,
+    2,
+  );
+}
+
+export async function toolGetWorkDoc(
+  slug: string | undefined,
+  findingId: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!findingId || findingId.trim().length === 0) {
+    throw new Error("Missing findingId");
+  }
+  validateFindingId(findingId);
+  const doc = await loadWorkDocument(repoSlug, findingId);
+  if (!doc) {
+    throw new Error(`Work document not found: ${findingId}`);
+  }
+  return JSON.stringify(doc, null, 2);
+}
+
+export async function toolUpdateWorkStatus(
+  slug: string | undefined,
+  findingId: string | undefined,
+  status: string | undefined,
+  note: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!findingId || findingId.trim().length === 0) {
+    throw new Error("Missing findingId");
+  }
+  validateFindingId(findingId);
+  const doc = await loadWorkDocument(repoSlug, findingId);
+  if (!doc) {
+    throw new Error(`Work document not found: ${findingId}`);
+  }
+  if (status) {
+    if (!VALID_STATUSES.includes(status as WorkDocumentStatus)) {
+      throw new Error(
+        `Invalid status: ${status}. Valid: ${VALID_STATUSES.join(", ")}`,
+      );
+    }
+    doc.status = status as WorkDocumentStatus;
+    if (status === "resolved") {
+      doc.resolvedAt = new Date().toISOString();
+    }
+  }
+  if (note) {
+    addNote(doc, "mcp-user", note);
+  }
+  await saveWorkDocument(repoSlug, doc);
+  return JSON.stringify({ updated: true, findingId, status: doc.status });
+}
+
+export async function toolListPlans(slug: string | undefined): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const plansDir = path.resolve(process.cwd(), "data", repoSlug, "plans");
+  try {
+    const { readdir } = await import("node:fs/promises");
+    const entries = await readdir(plansDir);
+    return JSON.stringify(entries.filter((e) => e.endsWith(".md")));
+  } catch {
+    return JSON.stringify([]);
+  }
+}
+
+export async function toolGetPlan(
+  slug: string | undefined,
+  findingId: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!findingId || findingId.trim().length === 0) {
+    throw new Error("Missing findingId");
+  }
+  validateFindingId(findingId);
+  const planPath = path.resolve(
+    process.cwd(),
+    "data",
+    repoSlug,
+    "plans",
+    `${findingId}.md`,
+  );
+  return readFile(planPath, "utf8");
+}
+
+export async function toolTrustScores(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const metrics = await loadAllTrustMetrics(repoSlug);
+  return JSON.stringify(metrics, null, 2);
 }

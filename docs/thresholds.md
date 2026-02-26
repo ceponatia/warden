@@ -1,6 +1,6 @@
 # Threshold tuning (Phase 4)
 
-Warden threshold defaults were tuned in IM04 to reduce noise from early runs.
+Warden threshold defaults were tuned in PH04 to reduce noise from early runs.
 
 ## Defaults
 

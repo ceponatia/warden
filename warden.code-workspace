@@ -1,9 +1,11 @@
 {
 	"folders": [
 		{
+			"name": "warden",
 			"path": "."
 		},
 		{
+			"name": "developer docs",
 			"path": "../dev-docs/warden"
 		}
 	],
@@ -16,6 +18,7 @@
 			"**/build": true,
 			"**/coverage": true,
 		},
+		"terminal.integrated.cwd": "${workspaceFolder:warden}",
 		"search.exclude": {
 			"**/.next": true,
 			"**/node_modules": true,

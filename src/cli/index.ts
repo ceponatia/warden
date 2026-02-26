@@ -8,6 +8,7 @@ import { runMcpCommand } from "./commands/mcp.js";
 import { runPruneCommand } from "./commands/prune.js";
 import { runReportCommand } from "./commands/report.js";
 import { runWikiCommand } from "./commands/wiki.js";
+import { runWorkCommand } from "./commands/work.js";
 
 function printHelp(): void {
   process.stdout.write(`Warden CLI\n\n`);
@@ -23,6 +24,9 @@ function printHelp(): void {
   process.stdout.write(`  warden hook uninstall [--repo <slug>]\n`);
   process.stdout.write(`  warden hook tick --repo <slug>\n`);
   process.stdout.write(`  warden wiki <WD-code>\n`);
+  process.stdout.write(
+    `  warden work [--repo <slug>] [<findingId>] [--status <status>] [--note <text>]\n`,
+  );
   process.stdout.write(`  warden mcp [--transport stdio|sse] [--port <n>]\n`);
 }
 
@@ -90,6 +94,9 @@ function createCommandHandlers(): Record<string, CommandHandler> {
       }
 
       await runWikiCommand(code);
+    },
+    work: async (rest: string[]) => {
+      await runWorkCommand(rest);
     },
     mcp: async (rest: string[]) => {
       const transportArg = getFlagValue(rest, "--transport");
