@@ -232,7 +232,8 @@ async function renderRepoTrends(
       </form>
       <canvas id="trendChart" height="120"></canvas>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js dependency: pinned to a specific version to reduce supply-chain risk -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
       const ctx = document.getElementById('trendChart');
       new Chart(ctx, {
