@@ -147,13 +147,13 @@ async function renderRepoDetail(slug: string): Promise<string> {
   const findingRows = report.findings
     .map(
       (f) => `<tr>
-      <td>${f.code}</td>
+      <td>${escapeHtml(f.code)}</td>
       <td>${severityBadge(f.severity)}</td>
       <td>${escapeHtml(f.summary)}</td>
       <td>${escapeHtml(f.path ?? "-")}</td>
       <td>${f.consecutiveReports}</td>
-      <td>${f.trend}</td>
-      <td>${f.workDocumentId ? `<a href="/repo/${slug}/work?findingId=${encodeURIComponent(f.workDocumentId)}">${f.workDocumentId}</a>` : "-"}</td>
+      <td>${escapeHtml(String(f.trend))}</td>
+      <td>${f.workDocumentId ? `<a href="/repo/${slug}/work?findingId=${encodeURIComponent(f.workDocumentId)}">${escapeHtml(String(f.workDocumentId))}</a>` : "-"}</td>
     </tr>`,
     )
     .join("");
