@@ -1,3 +1,5 @@
+import { listCodes } from "../findings/registry.js";
+import type { FindingInstance } from "../types/findings.js";
 import type { RepoConfig, SnapshotBundle } from "../types/snapshot.js";
 import type { SnapshotDelta } from "./delta.js";
 
@@ -23,18 +25,105 @@ function describeDelta(delta: SnapshotDelta): string {
   return parts.join(", ");
 }
 
+function buildCodeLegend(): string {
+  return listCodes()
+    .map((definition) => `${definition.code}: ${definition.shortDescription}`)
+    .join("\n");
+}
+
+function appendActiveFindingLines(
+  lines: string[],
+  activeFindings?: FindingInstance[],
+): void {
+  if (!activeFindings || activeFindings.length === 0) {
+    return;
+  }
+
+  lines.push(
+    "",
+    "## Active Finding Instances (code-prefixed)",
+    ...activeFindings
+      .slice(0, 200)
+      .map((finding) => `- [${finding.code}] ${finding.summary}`),
+  );
+}
+
+function appendComplexityLines(lines: string[], bundle: SnapshotBundle): void {
+  const complexity = bundle.complexity;
+  if (!complexity) {
+    return;
+  }
+
+  lines.push(
+    "",
+    "## Complexity",
+    `Total findings: ${complexity.summary.totalFindings}`,
+    `Complexity warnings: ${complexity.summary.complexityWarnings}`,
+    `Max-lines warnings: ${complexity.summary.maxLinesWarnings}`,
+    `Top findings: ${
+      complexity.findings
+        .slice(0, 5)
+        .map((f) => `${f.path}:${f.line} (${f.ruleId})`)
+        .join(", ") || "none"
+    }`,
+  );
+}
+
+function appendImportAndRuntimeLines(
+  lines: string[],
+  bundle: SnapshotBundle,
+): void {
+  if (bundle.imports) {
+    lines.push(
+      "",
+      "## Import Health",
+      `Files scanned: ${bundle.imports.summary.filesScanned}`,
+      `Deep imports: ${bundle.imports.summary.deepImports}`,
+      `Undeclared dependencies: ${bundle.imports.summary.undeclaredDependencies}`,
+      `Circular chains: ${bundle.imports.summary.circularChains}`,
+    );
+  }
+
+  if (bundle.runtime) {
+    lines.push(
+      "",
+      "## Runtime Coverage",
+      `API hit events: ${bundle.runtime.summary.apiHitEvents}`,
+      `Unique routes: ${bundle.runtime.summary.uniqueRoutes}`,
+      `Coverage files: ${bundle.runtime.summary.coverageFiles}`,
+    );
+  }
+}
+
+function appendDeltaLines(
+  lines: string[],
+  delta?: SnapshotDelta,
+  deltaContextLabel?: string,
+): void {
+  if (!delta) {
+    return;
+  }
+
+  const heading = deltaContextLabel
+    ? `## Trend ${deltaContextLabel}`
+    : "## Trend vs Previous Snapshot";
+  lines.push("", heading, describeDelta(delta));
+}
+
 export function assemblePrompt(
   config: RepoConfig,
   bundle: SnapshotBundle,
   delta?: SnapshotDelta,
   deltaContextLabel?: string,
+  activeFindings?: FindingInstance[],
 ): string {
-  const { gitStats, staleness, debtMarkers, complexity, imports, runtime } =
-    bundle;
+  const { gitStats, staleness, debtMarkers } = bundle;
 
   const w7 = gitStats.windows["7d"];
   const w30 = gitStats.windows["30d"];
   const w90 = gitStats.windows["90d"];
+
+  const codeLegend = buildCodeLegend();
 
   const lines: string[] = [
     `Repository: ${config.slug} (${config.type})`,
@@ -64,51 +153,17 @@ export function assemblePrompt(
     `any-casts: ${debtMarkers.summary.totalAnyCasts}`,
   ];
 
-  if (complexity) {
-    lines.push(
-      "",
-      "## Complexity",
-      `Total findings: ${complexity.summary.totalFindings}`,
-      `Complexity warnings: ${complexity.summary.complexityWarnings}`,
-      `Max-lines warnings: ${complexity.summary.maxLinesWarnings}`,
-      `Top findings: ${
-        complexity.findings
-          .slice(0, 5)
-          .map((f) => `${f.path}:${f.line} (${f.ruleId})`)
-          .join(", ") || "none"
-      }`,
-    );
-  }
-
-  if (imports) {
-    lines.push(
-      "",
-      "## Import Health",
-      `Files scanned: ${imports.summary.filesScanned}`,
-      `Deep imports: ${imports.summary.deepImports}`,
-      `Undeclared dependencies: ${imports.summary.undeclaredDependencies}`,
-      `Circular chains: ${imports.summary.circularChains}`,
-    );
-  }
-
-  if (runtime) {
-    lines.push(
-      "",
-      "## Runtime Coverage",
-      `API hit events: ${runtime.summary.apiHitEvents}`,
-      `Unique routes: ${runtime.summary.uniqueRoutes}`,
-      `Coverage files: ${runtime.summary.coverageFiles}`,
-    );
-  }
-
-  if (delta) {
-    const heading = deltaContextLabel
-      ? `## Trend ${deltaContextLabel}`
-      : "## Trend vs Previous Snapshot";
-    lines.push("", heading, describeDelta(delta));
-  }
+  appendActiveFindingLines(lines, activeFindings);
+  appendComplexityLines(lines, bundle);
+  appendImportAndRuntimeLines(lines, bundle);
+  appendDeltaLines(lines, delta, deltaContextLabel);
 
   lines.push(
+    "",
+    "## Finding Code Registry",
+    codeLegend,
+    "",
+    "For every reported issue, prefix with [WD-Mx-yyy]. Use only codes from the registry.",
     "",
     "Provide a prioritized maintenance analysis with concrete next steps.",
   );

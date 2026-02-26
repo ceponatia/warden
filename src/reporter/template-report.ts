@@ -170,31 +170,31 @@ export function renderTemplateReport(
 
 ## Growth (M1)
 
-### Flagged files (growing > ${config.thresholds.growthMultiplier}x repo average)
+### [WD-M1-001] Flagged files (growing > ${config.thresholds.growthMultiplier}x repo average)
 ${renderList(growthFileLines)}
 
-### Flagged directories (> ${config.thresholds.directoryGrowthPct}% growth)
+### [WD-M1-002] Flagged directories (> ${config.thresholds.directoryGrowthPct}% growth)
 ${renderList(growthDirectoryLines)}
 
 ## Churn (M3)
 
-### High-churn files (> ${config.thresholds.highChurnEdits} edits in 7d)
+### [WD-M3-001] High-churn files (> ${config.thresholds.highChurnEdits} edits in 7d)
 ${renderList(churnLines)}
 
 ## Staleness (M2)
 
-### Stale + imported (possibly underutilized)
+### [WD-M2-001] Stale + imported (possibly underutilized)
 ${renderList(stalenessLines.imported)}
 
-### Stale + not imported (possibly dead)
+### [WD-M2-002] Stale + not imported (possibly dead)
 ${renderList(stalenessLines.notImported)}
 
-### Stale + scoped no-import-check
+### [WD-M2-003] Stale + scoped no-import-check
 ${renderList(stalenessLines.scopedNoImportCheck)}
 
 ## Maintenance debt (M6)
 
-### Totals
+### [WD-M6-001|WD-M6-002|WD-M6-003] Totals
 - TODOs: ${debtMarkers.summary.totalTodos} | FIXMEs: ${debtMarkers.summary.totalFixmes} | HACKs: ${debtMarkers.summary.totalHacks} | eslint-disable: ${debtMarkers.summary.totalEslintDisables} | any: ${debtMarkers.summary.totalAnyCasts}
 
 ### Files with most markers
@@ -202,26 +202,26 @@ ${renderList(topDebtFiles)}
 
 ## Complexity (M4)
 
-### Findings
+### [WD-M4-001|WD-M4-002|WD-M4-003] Findings
 ${renderList(supplementalLines.complexity)}
 
 ## Imports (M5)
 
-### Deep imports
+### [WD-M5-001] Deep imports
 ${renderList(supplementalLines.deepImports)}
 
-### Undeclared dependencies
+### [WD-M5-002] Undeclared dependencies
 ${renderList(supplementalLines.undeclaredDeps)}
 
-### Circular chains
+### [WD-M5-003] Circular chains
 ${renderList(supplementalLines.circularChains)}
 
 ## Runtime (M9)
 
-### API route hits
+### [WD-M9-001|WD-M9-002] API route hits
 ${renderList(supplementalLines.runtimeRoutes)}
 
-### Coverage summary
+### [WD-M9-003] Coverage summary
 ${renderList(supplementalLines.runtimeCoverage)}
 
 ---

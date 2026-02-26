@@ -1,8 +1,15 @@
+import type { RepoSuppression } from "./findings.js";
+
 export interface RepoThresholds {
   staleDays: number;
   highChurnEdits: number;
   growthMultiplier: number;
   directoryGrowthPct: number;
+  highRewriteRatio: number;
+  complexityHotspotCount: number;
+  largeFileGrowthLines: number;
+  lowRouteHitCount: number;
+  newFileClusterCount: number;
 }
 
 export interface RepoRetention {
@@ -22,6 +29,7 @@ export interface RepoConfig {
   thresholds: RepoThresholds;
   retention: RepoRetention;
   commitThreshold: number;
+  suppressions?: RepoSuppression[];
 }
 
 export type MetricTag =
