@@ -139,8 +139,28 @@ export async function runWorkCommand(args: string[]): Promise<void> {
 
   const config = getRepoConfigBySlug(configs, repoSlug);
 
-  // Check for findingId as first positional arg (not a flag)
-  const findingId = args.find((a) => !a.startsWith("--"));
+  const valueFlags = new Set(["--repo", "--status", "--note"]);
+
+  function getFindingIdFromArgs(commandArgs: string[]): string | undefined {
+    let skipNext = false;
+    for (const arg of commandArgs) {
+      if (skipNext) {
+        skipNext = false;
+        continue;
+      }
+      if (arg.startsWith("--")) {
+        if (valueFlags.has(arg)) {
+          skipNext = true;
+        }
+        continue;
+      }
+      return arg;
+    }
+    return undefined;
+  }
+
+  // Check for findingId as first positional arg (not a flag or flag value)
+  const findingId = getFindingIdFromArgs(args);
 
   if (!findingId) {
     const docs = await loadWorkDocuments(config.slug);

@@ -12,7 +12,7 @@ export function generateFindingId(finding: FindingInstance): string {
   const pathPart = finding.path ? slugifyPath(finding.path) : "_global";
   const parts = [finding.code, pathPart];
   if (finding.symbol) {
-    parts.push(finding.symbol);
+    parts.push(slugifyPath(finding.symbol));
   }
   return parts.join("--");
 }
@@ -22,6 +22,13 @@ function workDir(slug: string): string {
 }
 
 function workDocPath(slug: string, findingId: string): string {
+  if (
+    findingId.includes("..") ||
+    findingId.includes("/") ||
+    findingId.includes("\\")
+  ) {
+    throw new Error("Invalid findingId");
+  }
   return path.join(workDir(slug), `${findingId}.json`);
 }
 
@@ -37,8 +44,12 @@ export async function loadWorkDocuments(slug: string): Promise<WorkDocument[]> {
 
   const docs: WorkDocument[] = [];
   for (const entry of entries) {
-    const raw = await readFile(path.join(dir, entry), "utf8");
-    docs.push(JSON.parse(raw) as WorkDocument);
+    try {
+      const raw = await readFile(path.join(dir, entry), "utf8");
+      docs.push(JSON.parse(raw) as WorkDocument);
+    } catch {
+      // Skip files that cannot be read or parsed
+    }
   }
   return docs;
 }

@@ -25,6 +25,27 @@ function ensureSlug(slug: string | undefined): string {
   return slug;
 }
 
+function validateFindingId(findingId: string): void {
+  if (
+    findingId.includes("..") ||
+    findingId.includes("/") ||
+    findingId.includes("\\")
+  ) {
+    throw new Error("Invalid findingId");
+  }
+}
+
+const VALID_STATUSES: WorkDocumentStatus[] = [
+  "unassigned",
+  "auto-assigned",
+  "agent-in-progress",
+  "agent-complete",
+  "pm-review",
+  "blocked",
+  "resolved",
+  "wont-fix",
+];
+
 export async function toolListRepos(): Promise<string> {
   const repos = await loadRepoConfigs();
   return JSON.stringify(
@@ -138,6 +159,7 @@ export async function toolGetWorkDoc(
   if (!findingId || findingId.trim().length === 0) {
     throw new Error("Missing findingId");
   }
+  validateFindingId(findingId);
   const doc = await loadWorkDocument(repoSlug, findingId);
   if (!doc) {
     throw new Error(`Work document not found: ${findingId}`);
@@ -155,11 +177,17 @@ export async function toolUpdateWorkStatus(
   if (!findingId || findingId.trim().length === 0) {
     throw new Error("Missing findingId");
   }
+  validateFindingId(findingId);
   const doc = await loadWorkDocument(repoSlug, findingId);
   if (!doc) {
     throw new Error(`Work document not found: ${findingId}`);
   }
   if (status) {
+    if (!VALID_STATUSES.includes(status as WorkDocumentStatus)) {
+      throw new Error(
+        `Invalid status: ${status}. Valid: ${VALID_STATUSES.join(", ")}`,
+      );
+    }
     doc.status = status as WorkDocumentStatus;
     if (status === "resolved") {
       doc.resolvedAt = new Date().toISOString();
@@ -192,6 +220,7 @@ export async function toolGetPlan(
   if (!findingId || findingId.trim().length === 0) {
     throw new Error("Missing findingId");
   }
+  validateFindingId(findingId);
   const planPath = path.resolve(
     process.cwd(),
     "data",
