@@ -60,13 +60,21 @@ async function updateExistingWorkDoc(
 
   const promotion = evaluatePromotion(existing);
   if (promotion) {
-    addNote(existing, "warden", `Severity promoted ${existing.severity} → ${promotion}.`);
+    addNote(
+      existing,
+      "warden",
+      `Severity promoted ${existing.severity} → ${promotion}.`,
+    );
     existing.severity = promotion;
   }
 
   const demotion = evaluateDemotion(existing);
   if (demotion) {
-    addNote(existing, "warden", `Severity demoted ${existing.severity} → ${demotion}.`);
+    addNote(
+      existing,
+      "warden",
+      `Severity demoted ${existing.severity} → ${demotion}.`,
+    );
     existing.severity = demotion;
   }
 
@@ -141,7 +149,9 @@ function buildWorkDocumentSummary(
   escalations: string[],
 ): WorkDocumentSummary {
   return {
-    total: docs.filter((d) => d.status !== "resolved" && d.status !== "wont-fix").length,
+    total: docs.filter(
+      (d) => d.status !== "resolved" && d.status !== "wont-fix",
+    ).length,
     unassigned: docs.filter((d) => d.status === "unassigned").length,
     autoAssigned: docs.filter((d) => d.status === "auto-assigned").length,
     agentComplete: docs.filter((d) => d.status === "agent-complete").length,
@@ -187,7 +197,9 @@ async function updateWikiForResolved(
     .slice(0, 5);
 
   for (const code of resolvedCodes) {
-    const baselineCount = baselineFindings.filter((f) => f.code === code).length;
+    const baselineCount = baselineFindings.filter(
+      (f) => f.code === code,
+    ).length;
     const contextLine = [
       `Resolved between snapshots (${deltaContextLabel ?? "current run"}).`,
       `Previously triggered ${baselineCount} time(s); no longer active.`,
@@ -213,14 +225,21 @@ export async function runAnalysis(
   const allowlist = await loadAllowlist(config);
   const currentSnapshot = await loadLatestSnapshot(config.slug);
   const snapshotTimestamp = currentSnapshot.timestamp;
-  const currentFindings = evaluateFindings(config, currentSnapshot, allowlist.rules);
+  const currentFindings = evaluateFindings(
+    config,
+    currentSnapshot,
+    allowlist.rules,
+  );
 
   let delta = undefined;
   let deltaContextLabel = undefined;
   let baselineFindings: FindingInstance[] = [];
 
   if (options?.compareBranch) {
-    const baseline = await loadLatestSnapshotForBranch(config.slug, options.compareBranch);
+    const baseline = await loadLatestSnapshotForBranch(
+      config.slug,
+      options.compareBranch,
+    );
     delta = computeDelta(baseline, currentSnapshot);
     deltaContextLabel = `vs branch ${options.compareBranch}`;
     baselineFindings = evaluateFindings(config, baseline, allowlist.rules);
@@ -236,9 +255,19 @@ export async function runAnalysis(
   const resolvedThisRun = await syncWorkDocuments(config.slug, currentFindings);
   const escalationMessages = await handleEscalations(config.slug);
   const allDocs = await loadWorkDocuments(config.slug);
-  const workDocumentSummary = buildWorkDocumentSummary(allDocs, resolvedThisRun, escalationMessages);
+  const workDocumentSummary = buildWorkDocumentSummary(
+    allDocs,
+    resolvedThisRun,
+    escalationMessages,
+  );
 
-  const userPrompt = assemblePrompt(config, currentSnapshot, delta, deltaContextLabel, currentFindings);
+  const userPrompt = assemblePrompt(
+    config,
+    currentSnapshot,
+    delta,
+    deltaContextLabel,
+    currentFindings,
+  );
   const analysis = await callProvider({
     systemPrompt:
       "You are Warden, a repository health analyst. Analyze the provided snapshot data and produce a concise, actionable maintenance report with prioritized next steps. Use markdown. Stay under 600 words.",
@@ -246,7 +275,12 @@ export async function runAnalysis(
   });
 
   if (baselineFindings.length > 0) {
-    await updateWikiForResolved(baselineFindings, currentFindings, deltaContextLabel, delta);
+    await updateWikiForResolved(
+      baselineFindings,
+      currentFindings,
+      deltaContextLabel,
+      delta,
+    );
   }
 
   const workStatusSection = renderWorkDocumentStatus(workDocumentSummary);
