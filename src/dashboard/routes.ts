@@ -2,10 +2,11 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { Express, Request, Response } from "express";
-import { marked } from "marked";
+import { Marked } from "marked";
 
 import { loadRepoConfigs } from "../config/loader.js";
 import { listCodes, lookupCode } from "../findings/registry.js";
+import { readJsonIfPresent } from "../snapshots.js";
 import type { StructuredReport } from "../types/report.js";
 import type { WorkDocumentStatus } from "../types/work.js";
 import { loadAllTrustMetrics } from "../work/trust.js";
@@ -17,13 +18,13 @@ import {
 } from "../work/manager.js";
 import { renderPage, severityBadge, escapeHtml } from "./views/render.js";
 
-async function readJsonFileIfExists<T>(filePath: string): Promise<T | null> {
-  try {
-    const raw = await readFile(filePath, "utf8");
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
+// Marked instance that discards raw HTML blocks to prevent XSS from wiki/report content
+const sanitizedMarked = new Marked();
+sanitizedMarked.use({ renderer: { html: () => "" } });
+
+/** Render markdown to HTML with raw HTML blocks stripped to prevent XSS. */
+async function renderMarkdownSafe(src: string): Promise<string> {
+  return sanitizedMarked.parse(src);
 }
 
 async function listReportFiles(slug: string): Promise<string[]> {
@@ -36,34 +37,30 @@ async function listReportFiles(slug: string): Promise<string[]> {
   }
 }
 
-async function loadLatestStructuredReport(
+async function loadLatestReportPair(
   slug: string,
-): Promise<StructuredReport | null> {
+): Promise<{ report: StructuredReport | null; markdown: string }> {
   const files = await listReportFiles(slug);
   const latestJson = files.find((file) => file.endsWith(".json"));
   if (!latestJson) {
-    return null;
+    return { report: null, markdown: "No markdown report available." };
   }
-  return readJsonFileIfExists<StructuredReport>(
-    path.resolve(process.cwd(), "data", slug, "reports", latestJson),
+  const reportsDir = path.resolve(process.cwd(), "data", slug, "reports");
+  const report = await readJsonIfPresent<StructuredReport>(
+    path.join(reportsDir, latestJson),
   );
+  const mdBase = latestJson.replace(/\.json$/, ".md");
+  const markdown = await readFile(path.join(reportsDir, mdBase), "utf8").catch(
+    () => "No markdown report available.",
+  );
+  return { report, markdown };
 }
 
-async function loadLatestMarkdownReport(slug: string): Promise<string> {
-  const files = await listReportFiles(slug);
-  const latestMarkdown = files.find((file) => file.endsWith(".md"));
-  if (!latestMarkdown) {
-    return "No markdown report available.";
-  }
-
-  const reportPath = path.resolve(
-    process.cwd(),
-    "data",
-    slug,
-    "reports",
-    latestMarkdown,
-  );
-  return readFile(reportPath, "utf8");
+async function loadLatestStructuredReport(
+  slug: string,
+): Promise<StructuredReport | null> {
+  const { report } = await loadLatestReportPair(slug);
+  return report;
 }
 
 function healthStatus(report: StructuredReport | null): string {
@@ -110,7 +107,7 @@ async function renderOverview(): Promise<string> {
         <td>${report?.findings.length ?? 0}</td>
         <td>${criticalCount}</td>
         <td>${mediumCount}</td>
-        <td>${report ? report.workDocumentSummary.unassigned + report.workDocumentSummary.autoAssigned + report.workDocumentSummary.agentInProgress + report.workDocumentSummary.agentComplete + report.workDocumentSummary.blocked : 0}</td>
+        <td>${report ? report.workDocumentSummary.totalActive : 0}</td>
         <td>${healthStatus(report)}</td>
       </tr>`;
     }),
@@ -133,13 +130,12 @@ async function renderOverview(): Promise<string> {
 }
 
 async function renderRepoDetail(slug: string): Promise<string> {
-  const report = await loadLatestStructuredReport(slug);
-  const markdown = await loadLatestMarkdownReport(slug);
+  const { report, markdown } = await loadLatestReportPair(slug);
 
   if (!report) {
     return renderPage(
       `Repo: ${slug}`,
-      `<div class="card">No structured report found. Run <code>warden analyze --repo ${slug}</code>.</div>`,
+      `<div class="card">No structured report found. Run <code>warden analyze --repo ${escapeHtml(slug)}</code>.</div>`,
       slug,
     );
   }
@@ -153,12 +149,12 @@ async function renderRepoDetail(slug: string): Promise<string> {
       <td>${escapeHtml(f.path ?? "-")}</td>
       <td>${f.consecutiveReports}</td>
       <td>${escapeHtml(String(f.trend))}</td>
-      <td>${f.workDocumentId ? `<a href="/repo/${slug}/work?findingId=${encodeURIComponent(f.workDocumentId)}">${escapeHtml(String(f.workDocumentId))}</a>` : "-"}</td>
+      <td>${f.workDocumentId ? `<a href="/repo/${encodeURIComponent(slug)}/work?findingId=${encodeURIComponent(f.workDocumentId)}">${escapeHtml(String(f.workDocumentId))}</a>` : "-"}</td>
     </tr>`,
     )
     .join("");
 
-  const htmlReport = await marked.parse(markdown);
+  const htmlReport = await renderMarkdownSafe(markdown);
 
   return renderPage(
     `Repo: ${slug}`,
@@ -194,13 +190,14 @@ async function renderRepoTrends(
   slug: string,
   rangeDays: number,
 ): Promise<string> {
-  const files = (await listReportFiles(slug)).filter((f) =>
+  const allFiles = (await listReportFiles(slug)).filter((f) =>
     f.endsWith(".json"),
   );
+  const filesInRange = allFiles.slice(0, Math.min(allFiles.length, Math.max(1, rangeDays)));
   const reports: StructuredReport[] = [];
 
-  for (const file of files) {
-    const report = await readJsonFileIfExists<StructuredReport>(
+  for (const file of filesInRange) {
+    const report = await readJsonIfPresent<StructuredReport>(
       path.resolve(process.cwd(), "data", slug, "reports", file),
     );
     if (report) {
@@ -208,13 +205,12 @@ async function renderRepoTrends(
     }
   }
 
-  const sliced = reports.slice(0, Math.max(1, rangeDays));
-  const labels = sliced.map((r) => r.timestamp);
+  const labels = reports.map((r) => r.timestamp);
 
-  const totals = sliced.map((r) => r.findings.length);
-  const stale = sliced.map((r) => r.metricSnapshots.staleFileCount);
-  const todos = sliced.map((r) => r.metricSnapshots.todoCount);
-  const complexity = sliced.map((r) => r.metricSnapshots.complexityFindings);
+  const totals = reports.map((r) => r.findings.length);
+  const stale = reports.map((r) => r.metricSnapshots.staleFileCount);
+  const todos = reports.map((r) => r.metricSnapshots.todoCount);
+  const complexity = reports.map((r) => r.metricSnapshots.complexityFindings);
 
   return renderPage(
     `Trends: ${slug}`,
@@ -319,18 +315,18 @@ async function renderWorkView(
   const rows = filtered
     .map(
       (doc) => `<tr>
-      <td>${doc.findingId}</td>
-      <td>${doc.code}</td>
+      <td>${escapeHtml(doc.findingId)}</td>
+      <td>${escapeHtml(doc.code)}</td>
       <td>${severityBadge(doc.severity)}</td>
-      <td>${doc.status}</td>
+      <td>${escapeHtml(doc.status)}</td>
       <td>${doc.consecutiveReports}</td>
-      <td>${doc.trend}</td>
-      <td>${doc.assignedTo ?? "-"}</td>
+      <td>${escapeHtml(String(doc.trend))}</td>
+      <td>${escapeHtml(doc.assignedTo ?? "-")}</td>
       <td>
-        <form method="post" action="/repo/${slug}/work" class="inline">
-          <input type="hidden" name="findingId" value="${doc.findingId}" />
+        <form method="post" action="/repo/${encodeURIComponent(slug)}/work" class="inline">
+          <input type="hidden" name="findingId" value="${escapeHtml(doc.findingId)}" />
           <select name="status">
-            ${VALID_STATUSES.map((s) => `<option value="${s}" ${doc.status === s ? "selected" : ""}>${s}</option>`).join("")}
+            ${VALID_STATUSES.map((s) => `<option value="${s}" ${doc.status === s ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
           </select>
           <input name="note" placeholder="optional note" />
           <button type="submit">Update</button>
@@ -344,7 +340,7 @@ async function renderWorkView(
     ? docs.find((doc) => doc.findingId === findingId)
     : undefined;
   const notes = selectedDoc
-    ? `<div class="card"><h3>Notes: ${selectedDoc.findingId}</h3><pre>${escapeHtml(selectedDoc.notes.map((n) => `[${n.timestamp}] ${n.author}: ${n.text}`).join("\n"))}</pre></div>`
+    ? `<div class="card"><h3>Notes: ${escapeHtml(selectedDoc.findingId)}</h3><pre>${escapeHtml(selectedDoc.notes.map((n) => `[${n.timestamp}] ${n.author}: ${n.text}`).join("\n"))}</pre></div>`
     : "";
 
   return renderPage(
@@ -425,7 +421,7 @@ async function renderWikiPage(code: string): Promise<string> {
   const raw = await readFile(wikiPath, "utf8").catch(
     () => "Wiki page not found.",
   );
-  const html = await marked.parse(raw);
+  const html = await renderMarkdownSafe(raw);
 
   return renderPage(
     `Wiki: ${definition.code}`,
@@ -444,41 +440,52 @@ export function registerDashboardRoutes(app: Express): void {
     return value;
   }
 
+  function getValidatedSlug(req: Request, res: Response): string | null {
+    const slug = paramValue(req.params.slug);
+    if (!slug || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(slug)) {
+      res.status(400).type("text/plain").send("Invalid repository slug");
+      return null;
+    }
+    return slug;
+  }
+
   app.get("/", async (_req: Request, res: Response) => {
     res.type("html").send(await renderOverview());
   });
 
   app.get("/repo/:slug", async (req: Request, res: Response) => {
-    res.type("html").send(await renderRepoDetail(paramValue(req.params.slug)));
+    const slug = getValidatedSlug(req, res);
+    if (slug === null) return;
+    res.type("html").send(await renderRepoDetail(slug));
   });
 
   app.get("/repo/:slug/trends", async (req: Request, res: Response) => {
+    const slug = getValidatedSlug(req, res);
+    if (slug === null) return;
     const range =
       typeof req.query.range === "string" ? req.query.range : undefined;
     res
       .type("html")
-      .send(
-        await renderRepoTrends(
-          paramValue(req.params.slug),
-          readRangeQuery(range),
-        ),
-      );
+      .send(await renderRepoTrends(slug, readRangeQuery(range)));
   });
 
   app.get("/repo/:slug/work", async (req: Request, res: Response) => {
-    res
-      .type("html")
-      .send(await renderWorkView(paramValue(req.params.slug), req.query));
+    const slug = getValidatedSlug(req, res);
+    if (slug === null) return;
+    res.type("html").send(await renderWorkView(slug, req.query));
   });
 
   app.post("/repo/:slug/work", async (req: Request, res: Response) => {
-    const slug = paramValue(req.params.slug);
+    const slug = getValidatedSlug(req, res);
+    if (slug === null) return;
     await updateWorkFromRequest(slug, req);
-    res.redirect(`/repo/${slug}/work`);
+    res.redirect(`/repo/${encodeURIComponent(slug)}/work`);
   });
 
   app.get("/repo/:slug/agents", async (req: Request, res: Response) => {
-    res.type("html").send(await renderAgentsView(paramValue(req.params.slug)));
+    const slug = getValidatedSlug(req, res);
+    if (slug === null) return;
+    res.type("html").send(await renderAgentsView(slug));
   });
 
   app.get("/wiki", async (req: Request, res: Response) => {

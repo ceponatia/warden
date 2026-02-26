@@ -1,5 +1,5 @@
 import express from "express";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { registerDashboardRoutes } from "./routes.js";
 
@@ -12,20 +12,30 @@ export async function startDashboardServer(
 ): Promise<void> {
   const app = express();
   app.use(express.urlencoded({ extended: true }));
-  app.use(
-    "/static",
-    express.static(path.resolve(process.cwd(), "src", "dashboard", "public")),
-  );
+  const staticDir = fileURLToPath(new URL("./public", import.meta.url));
+  app.use("/static", express.static(staticDir));
 
   registerDashboardRoutes(app);
 
   const port = options.port ?? 3333;
-  await new Promise<void>((resolve) => {
-    app.listen(port, () => {
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(port, () => {
       process.stdout.write(
         `Warden dashboard running at http://localhost:${port}\n`,
       );
       resolve();
+    });
+
+    server.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "EADDRINUSE") {
+        reject(
+          new Error(
+            `Failed to start Warden dashboard: port ${port} is already in use.`,
+          ),
+        );
+      } else {
+        reject(err);
+      }
     });
   });
 }

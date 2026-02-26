@@ -11,8 +11,10 @@ export interface StructuredReport {
   trustScores: TrustMetrics[];
   improvements: string[];
   metricSnapshots: {
-    totalFiles: number;
-    totalLoc: number;
+    /** Files changed in the 7-day git window (not a repo-wide total). */
+    filesChangedIn7d: number;
+    /** Lines added + removed in the 7-day git window (churn, not repo LOC). */
+    locChurnIn7d: number;
     staleFileCount: number;
     todoCount: number;
     complexityFindings: number;
@@ -37,8 +39,10 @@ export interface WorkDocumentSummary {
   autoAssigned: number;
   agentInProgress: number;
   agentComplete: number;
+  pmReview: number;
   blocked: number;
   resolvedThisReport: number;
+  totalActive: number;
 }
 
 export interface AgentActivityEntry {

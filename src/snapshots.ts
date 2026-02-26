@@ -15,7 +15,7 @@ export interface LoadedSnapshot extends SnapshotBundle {
   timestamp: string;
 }
 
-async function readJsonIfPresent<T>(filePath: string): Promise<T | null> {
+export async function readJsonIfPresent<T>(filePath: string): Promise<T | null> {
   try {
     const raw = await readFile(filePath, "utf8");
     return JSON.parse(raw) as T;
