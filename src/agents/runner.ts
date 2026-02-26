@@ -78,7 +78,19 @@ export async function runAnalysis(
       .slice(0, 5);
 
     for (const code of resolvedCodes) {
-      const contextLine = `Resolved between snapshots ${deltaContextLabel ?? "current run"}. Current findings: ${currentFindings.length}.`;
+      const baselineCount = baselineFindings.filter(
+        (f) => f.code === code,
+      ).length;
+      const contextLine = [
+        `Resolved between snapshots (${deltaContextLabel ?? "current run"}).`,
+        `Previously triggered ${baselineCount} time(s); no longer active in the current snapshot.`,
+        `Current active findings: ${currentFindings.length}.`,
+        delta
+          ? `Delta summary — stale files: ${delta.staleFilesDelta ?? "n/a"}, TODOs: ${delta.totalTodosDelta ?? "n/a"}, complexity: ${delta.complexityFindingsDelta ?? "n/a"}.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
       try {
         await updateWikiPageForResolvedFinding(code, contextLine);
       } catch {

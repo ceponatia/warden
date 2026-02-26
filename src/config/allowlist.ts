@@ -38,7 +38,7 @@ export function parseAllowlist(content: string): AllowlistRule[] {
       continue;
     }
 
-    const headerMatch = trimmed.match(/^\[(WD-M\d-\d{3})\]$/i);
+    const headerMatch = trimmed.match(/^\[(WD-M\d+-\d{3})\]$/i);
     if (headerMatch?.[1]) {
       currentCode = headerMatch[1].toUpperCase();
       if (!map.has(currentCode)) {
@@ -100,7 +100,13 @@ function matchesAllowlistEntry(
   }
 
   if (entry.includes(":")) {
-    const [entryPath, entrySymbol] = entry.split(":");
+    const colonIndex = entry.indexOf(":");
+    const entryPath = entry.slice(0, colonIndex);
+    const entrySymbol = entry.slice(colonIndex + 1);
+    if (!entryPath || !entrySymbol) {
+      return false;
+    }
+
     return entryPath === findingPath && entrySymbol === symbol;
   }
 

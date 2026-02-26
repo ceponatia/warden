@@ -253,6 +253,7 @@ function appendRuntime(
       code: "WD-M9-001",
       metric: "M9",
       summary: "No API route hits captured for this snapshot",
+      path: "runtime:routes",
     });
   }
 

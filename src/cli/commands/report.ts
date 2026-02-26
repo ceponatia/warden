@@ -84,7 +84,7 @@ async function renderReportForRepo(
       compareBranch,
     );
     const delta = computeDelta(baseline, snapshot);
-    report = `${baseReport}${renderCompareSection(compareBranch, delta)}`;
+    report = `${baseReport}${renderFindingSummarySection(summaryLines)}${renderCompareSection(compareBranch, delta)}`;
   }
 
   const fileName = `${timestampFileName(new Date())}.md`;

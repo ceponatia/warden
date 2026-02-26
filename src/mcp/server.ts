@@ -135,7 +135,7 @@ function registerTools(server: McpServer): void {
     "warden_collect",
     {
       description: "Trigger collection for a repo",
-      inputSchema: { repo: z.string().describe("Repo slug") },
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
     },
     async ({ repo }) => ({
       content: [{ type: "text", text: await toolCollect(repo) }],
@@ -146,7 +146,7 @@ function registerTools(server: McpServer): void {
     "warden_analyze",
     {
       description: "Trigger analysis for a repo",
-      inputSchema: { repo: z.string().describe("Repo slug") },
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
     },
     async ({ repo }) => ({
       content: [{ type: "text", text: await toolAnalyze(repo) }],
@@ -157,7 +157,7 @@ function registerTools(server: McpServer): void {
     "warden_report",
     {
       description: "Generate report for a repo",
-      inputSchema: { repo: z.string().describe("Repo slug") },
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
     },
     async ({ repo }) => ({
       content: [{ type: "text", text: await toolReport(repo) }],
@@ -168,7 +168,7 @@ function registerTools(server: McpServer): void {
     "warden_wiki_lookup",
     {
       description: "Lookup finding wiki page",
-      inputSchema: { code: z.string().describe("Finding code") },
+      inputSchema: z.object({ code: z.string().describe("Finding code") }),
     },
     async ({ code }) => ({
       content: [{ type: "text", text: await toolWikiLookup(code) }],
@@ -179,7 +179,7 @@ function registerTools(server: McpServer): void {
     "warden_snapshot_diff",
     {
       description: "Compare two snapshots",
-      inputSchema: {
+      inputSchema: z.object({
         repo: z.string().describe("Repo slug"),
         leftTimestamp: z
           .string()
@@ -189,7 +189,7 @@ function registerTools(server: McpServer): void {
           .string()
           .optional()
           .describe("Newer snapshot timestamp"),
-      },
+      }),
     },
     async ({ repo, leftTimestamp, rightTimestamp }) => ({
       content: [
@@ -226,6 +226,9 @@ export async function startMcpServer(
     return;
   }
 
+  const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MiB
+  const sharedServer = createWardenMcpServer();
+
   const httpServer = createServer(async (req, res) => {
     if (!req.url || req.url !== "/mcp") {
       res.statusCode = 404;
@@ -240,24 +243,36 @@ export async function startMcpServer(
     }
 
     let raw = "";
+    let overflow = false;
     req.on("data", (chunk) => {
+      if (overflow) {
+        return;
+      }
+
       raw += chunk.toString();
+      if (raw.length > MAX_BODY_BYTES) {
+        overflow = true;
+        res.statusCode = 413;
+        res.end("Request body too large");
+      }
     });
 
     req.on("end", async () => {
+      if (overflow) {
+        return;
+      }
+
       try {
         const parsed = raw.trim().length > 0 ? JSON.parse(raw) : undefined;
-        const server = createWardenMcpServer();
         const streamable = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
         });
 
-        await server.connect(streamable);
+        await sharedServer.connect(streamable);
         await streamable.handleRequest(req, res, parsed);
 
         res.on("close", () => {
           void streamable.close();
-          void server.close();
         });
       } catch (error) {
         res.statusCode = 500;
@@ -270,6 +285,10 @@ export async function startMcpServer(
 
   await new Promise<void>((resolve) => {
     httpServer.listen(port, () => resolve());
+  });
+
+  httpServer.on("close", () => {
+    void sharedServer.close();
   });
 
   process.stderr.write(
