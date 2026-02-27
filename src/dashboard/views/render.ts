@@ -14,6 +14,9 @@ function nav(slug?: string): string {
 
   return `<nav>
     <a href="/">Overview</a>
+    <a href="/portfolio">Portfolio</a>
+    <a href="/portfolio/trends">Portfolio Trends</a>
+    <a href="/portfolio/drift">Portfolio Drift</a>
     ${repoLinks}
     <a href="/wiki">Wiki</a>
   </nav>`;

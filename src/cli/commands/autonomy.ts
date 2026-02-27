@@ -4,7 +4,9 @@ import { stdin as input, stdout as output } from "node:process";
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
 import { loadImpactRecords } from "../../work/impact.js";
 import {
+  grantGlobalAutonomyPolicy,
   grantAutonomyRule,
+  listGlobalAutonomyPolicies,
   listAutonomyRules,
   revokeAutonomyRule,
 } from "../../work/autonomy.js";
@@ -57,6 +59,20 @@ function parseCodes(value: string | undefined): string[] | undefined {
     .map((part) => part.trim())
     .filter(Boolean);
   return codes.length > 0 ? codes : undefined;
+}
+
+function parseSeverities(value: string | undefined): Severity[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const severities = value
+    .split(",")
+    .map((part) => part.trim().toUpperCase())
+    .filter((part) => ["S0", "S1", "S2", "S3", "S4", "S5"].includes(part))
+    .map((part) => part as Severity);
+
+  return severities.length > 0 ? severities : undefined;
 }
 
 async function resolveRepoSlug(args: string[]): Promise<string> {
@@ -137,6 +153,41 @@ async function runGrant(args: string[]): Promise<void> {
   );
 }
 
+async function runGrantGlobal(args: string[]): Promise<void> {
+  const agentName = getFlagValue(args, "--agent");
+  if (!agentName) {
+    throw new Error(
+      "Missing --agent. Usage: warden autonomy grant --global --agent <name> --min-score <0-1>",
+    );
+  }
+
+  const minScore = parseNumberFlag(
+    getFlagValue(args, "--min-score"),
+    "--min-score",
+  );
+  if (minScore === undefined) {
+    throw new Error("Missing --min-score for global autonomy grant.");
+  }
+
+  const allowedCodes = parseCodes(getFlagValue(args, "--codes"));
+  const allowedSeverities = parseSeverities(
+    getFlagValue(args, "--allowed-severities"),
+  );
+  const appliesTo = parseCodes(getFlagValue(args, "--repos"));
+
+  const policy = await grantGlobalAutonomyPolicy({
+    agentName,
+    minAggregateScore: minScore,
+    allowedCodes,
+    allowedSeverities,
+    appliesTo,
+  });
+
+  process.stdout.write(
+    `Granted global autonomy policy for ${policy.agentName} (min aggregate score ${policy.minAggregateScore}).\n`,
+  );
+}
+
 async function runRevoke(args: string[]): Promise<void> {
   const agentName = args[0];
   if (!agentName) {
@@ -176,6 +227,21 @@ async function runList(args: string[]): Promise<void> {
   }
 }
 
+async function runListGlobal(): Promise<void> {
+  const policies = await listGlobalAutonomyPolicies();
+  if (policies.length === 0) {
+    process.stdout.write("No global autonomy policies configured.\n");
+    return;
+  }
+
+  process.stdout.write("Global autonomy policies:\n");
+  for (const policy of policies) {
+    process.stdout.write(
+      `- ${policy.agentName} | minAggregateScore=${policy.minAggregateScore} | severities=${policy.allowedSeverities.join(",")} | codes=${policy.allowedCodes.join(",") || "all"} | appliesTo=${policy.appliesTo.join(",") || "all"}\n`,
+    );
+  }
+}
+
 async function runImpact(args: string[]): Promise<void> {
   const slug = await resolveRepoSlug(args);
   const records = await loadImpactRecords(slug);
@@ -200,17 +266,26 @@ async function runImpact(args: string[]): Promise<void> {
 export async function runAutonomyCommand(args: string[]): Promise<void> {
   const action = args[0];
   const rest = args.slice(1);
+  const isGlobal = rest.includes("--global");
 
   if (!action || action === "--help" || action === "-h") {
     process.stdout.write("Usage:\n");
     process.stdout.write("  warden autonomy grant <agent> --repo <slug>\n");
+    process.stdout.write(
+      "  warden autonomy grant --global --agent <agent> --min-score <n> [--codes A,B] [--allowed-severities S2,S3] [--repos repo1,repo2]\n",
+    );
     process.stdout.write("  warden autonomy revoke <agent> --repo <slug>\n");
     process.stdout.write("  warden autonomy list --repo <slug>\n");
+    process.stdout.write("  warden autonomy list --global\n");
     process.stdout.write("  warden autonomy impact --repo <slug>\n");
     return;
   }
 
   if (action === "grant") {
+    if (isGlobal) {
+      await runGrantGlobal(rest);
+      return;
+    }
     await runGrant(rest);
     return;
   }
@@ -219,6 +294,10 @@ export async function runAutonomyCommand(args: string[]): Promise<void> {
     return;
   }
   if (action === "list") {
+    if (isGlobal) {
+      await runListGlobal();
+      return;
+    }
     await runList(rest);
     return;
   }

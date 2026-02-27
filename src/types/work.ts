@@ -104,6 +104,20 @@ export interface AutonomyConfig {
   globalDefaults: AutonomyGlobalDefaults;
 }
 
+export interface GlobalAutonomyPolicy {
+  agentName: string;
+  minAggregateScore: number;
+  allowedSeverities: Severity[];
+  allowedCodes: string[];
+  appliesTo: string[];
+  createdAt: string;
+  createdBy: "manual";
+}
+
+export interface GlobalAutonomyConfig {
+  policies: GlobalAutonomyPolicy[];
+}
+
 export interface MergeImpactAssessment {
   newFindingsIntroduced: string[];
   findingsResolved: string[];

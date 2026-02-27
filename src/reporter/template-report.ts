@@ -1,3 +1,6 @@
+import { loadLatestSnapshot } from "../snapshots.js";
+import type { CrossRepoReport } from "../github/cross-repo.js";
+import { loadWorkDocuments } from "../work/manager.js";
 import type {
   CoverageSnapshot,
   ComplexitySnapshot,
@@ -362,4 +365,89 @@ ${renderCoverageAndDocsSection(config, coverageLines, docStalenessLines)}
 
 ---
 Collected at ${gitStats.collectedAt} | Thresholds: stale=${config.thresholds.staleDays}d, doc-stale=${config.thresholds.docStaleDays}d, churn=${config.thresholds.highChurnEdits}, growth=${config.thresholds.growthMultiplier}x, coverage=${config.thresholds.lowCoveragePct}%`;
+}
+
+function driftRow(
+  dependency: string,
+  repos: string[],
+  versions: Record<string, string>,
+): string {
+  const values = repos.map((slug) => versions[slug] ?? "-");
+  return `| ${dependency} | ${values.join(" | ")} |`;
+}
+
+export async function renderPortfolioReport(
+  configs: RepoConfig[],
+  crossRepo: CrossRepoReport,
+  aiRecommendations?: string[],
+): Promise<string> {
+  const repos = [...configs].sort((a, b) => a.slug.localeCompare(b.slug));
+  const repoLines = await Promise.all(
+    repos.map(async (repo) => {
+      const active = await loadWorkDocuments(repo.slug).then((docs) =>
+        docs.filter((doc) => doc.status !== "resolved" && doc.status !== "wont-fix").length,
+      );
+      const lastCollected = await loadLatestSnapshot(repo.slug)
+        .then((snapshot) => snapshot.gitStats.collectedAt)
+        .catch(() => "n/a");
+      return `- ${repo.slug} (last collected: ${lastCollected}) - ${active} active findings`;
+    }),
+  );
+
+  const systemicPatterns =
+    crossRepo.systemicPatterns.length > 0
+      ? crossRepo.systemicPatterns
+          .map(
+            (pattern) =>
+              `### ${pattern.patternType} - ${pattern.description}\n- Severity: ${pattern.severity}\n- Repos: ${pattern.affectedRepos.join(", ")}`,
+          )
+          .join("\n\n")
+      : "- none";
+
+  const header = `| Package | ${repos.map((repo) => repo.slug).join(" | ")} |`;
+  const separator = `| ${["---", ...repos.map(() => "---")].join(" | ")} |`;
+  const driftRows = crossRepo.sharedDependencyDrift
+    .slice(0, 30)
+    .map((entry) => driftRow(entry.dependency, repos.map((repo) => repo.slug), entry.versions));
+
+  const metricRows = crossRepo.metricTrends
+    .filter((row) => Object.values(row.repoTrends).some((trend) => trend !== "stable"))
+    .slice(0, 12)
+    .map((row) => {
+      const repoStates = repos.map((repo) => {
+        const trend = row.repoTrends[repo.slug] ?? "stable";
+        return trend === "worsening" ? "↑ worsening" : trend === "improving" ? "↓ improving" : "→ stable";
+      });
+      return `| ${row.metric} | ${repoStates.join(" | ")} |`;
+    });
+
+  const metricHeader = `| Metric | ${repos.map((repo) => repo.slug).join(" | ")} |`;
+  const metricSeparator = `| ${["---", ...repos.map(() => "---")].join(" | ")} |`;
+
+  const recommendationLines =
+    aiRecommendations && aiRecommendations.length > 0
+      ? aiRecommendations.map((line) => `- ${line}`).join("\n")
+      : crossRepo.recommendations.map((line) => `- ${line}`).join("\n");
+
+  return `# Warden Portfolio Report -- ${crossRepo.timestamp}
+
+## Monitored Repos
+${repoLines.join("\n")}
+
+## Systemic Patterns
+${systemicPatterns}
+
+## Dependency Drift
+${header}
+${separator}
+${driftRows.length > 0 ? driftRows.join("\n") : "| none | - |"}
+
+## Metric Trends (30d equivalent snapshot delta)
+${metricHeader}
+${metricSeparator}
+${metricRows.length > 0 ? metricRows.join("\n") : "| none | - |"}
+
+## Recommendations
+${recommendationLines}
+`;
 }
