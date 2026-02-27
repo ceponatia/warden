@@ -43,27 +43,22 @@ export async function ensureGithubClone(params: {
   const remoteUrl = `https://github.com/${params.owner}/${params.repo}.git`;
 
   if (await exists(path.join(clonePath, ".git"))) {
+    const branchResult = await runCommandSafe(
+      "git",
+      ["symbolic-ref", "refs/remotes/origin/HEAD"],
+      clonePath,
+    );
+    const defaultBranch =
+      branchResult.exitCode === 0
+        ? branchResult.stdout.trim().replace("refs/remotes/origin/", "")
+        : "main";
+
     await runCommand("git", ["fetch", "origin"], clonePath);
     await runCommand(
       "git",
-      ["pull", "--ff-only", "origin", "main"],
+      ["pull", "--ff-only", "origin", defaultBranch],
       clonePath,
-    ).catch(async () => {
-      const branchResult = await runCommandSafe(
-        "git",
-        ["symbolic-ref", "refs/remotes/origin/HEAD"],
-        clonePath,
-      );
-      const branch =
-        branchResult.exitCode === 0
-          ? branchResult.stdout.trim().replace("refs/remotes/origin/", "")
-          : "main";
-      await runCommand(
-        "git",
-        ["pull", "--ff-only", "origin", branch],
-        clonePath,
-      );
-    });
+    );
 
     return clonePath;
   }
