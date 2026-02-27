@@ -5,7 +5,11 @@ import type { StructuredReport } from "../types/report.js";
 import type { RepoConfig } from "../types/snapshot.js";
 import type { FindingMetric } from "../types/findings.js";
 import type { Severity } from "../types/work.js";
-import { loadAllTrustMetrics, computeAggregateTrust } from "../work/trust.js";
+import {
+  loadAllTrustMetrics,
+  computeAggregateTrust,
+  type AgentTrustSummary,
+} from "../work/trust.js";
 import { loadWorkDocuments } from "../work/manager.js";
 import {
   classifyDriftLevel,
@@ -60,13 +64,6 @@ export interface SystemicPattern {
   affectedRepos: string[];
   severity: Severity;
   evidence: PatternEvidence[];
-}
-
-export interface AgentTrustSummary {
-  agentName: string;
-  repoScores: Record<string, number>;
-  aggregateScore: number;
-  globalEligible: boolean;
 }
 
 export interface MetricTrendSummary {
@@ -383,8 +380,12 @@ export async function runCrossRepoAnalysis(
     [StructuredReport | null, StructuredReport | null]
   >();
 
-  await Promise.all(
-    configs.map(async (config) => {
+  const CONCURRENCY = 4;
+  const queue = [...configs];
+  const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const config = queue.shift();
+      if (!config) break;
       const [direct, transitive, docs, reportPair] = await Promise.all([
         readPackageVersionMap(config.path),
         readTransitiveVersionMap(config.path),
@@ -399,8 +400,9 @@ export async function runCrossRepoAnalysis(
       transitiveDeps.set(config.slug, transitive);
       activeDocsByRepo.set(config.slug, docs);
       reportPairsByRepo.set(config.slug, reportPair);
-    }),
-  );
+    }
+  });
+  await Promise.all(workers);
 
   const trendData = detectMetricTrendPatterns(reportPairsByRepo);
   const systemicPatterns = [

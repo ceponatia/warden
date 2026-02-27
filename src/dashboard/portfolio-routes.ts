@@ -5,7 +5,7 @@ import { loadRepoConfigs } from "../config/loader.js";
 import { runCrossRepoAnalysis } from "../github/cross-repo.js";
 import { readJsonIfPresent } from "../snapshots.js";
 import type { StructuredReport } from "../types/report.js";
-import { escapeHtml, renderPage } from "./views/render.js";
+import { escapeHtml, renderPage, safeJsonForScript } from "./views/render.js";
 
 function severityClass(severity: string): string {
   return `badge-${severity.toLowerCase()}`;
@@ -193,8 +193,8 @@ export async function renderPortfolioTrendsPage(
       new Chart(ctx, {
         type: 'line',
         data: {
-          labels: ${JSON.stringify(labels)},
-          datasets: ${JSON.stringify(datasets)}
+          labels: ${safeJsonForScript(labels)},
+          datasets: ${safeJsonForScript(datasets)}
         },
         options: { responsive: true, maintainAspectRatio: false }
       });
