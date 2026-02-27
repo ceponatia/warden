@@ -17,10 +17,11 @@ import { ensureGithubClone, parseGithubRepoSpec } from "../../github/repo.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 
 function toSlug(input: string): string {
-  return path
-    .basename(input)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-");
+  const base = path.basename(input).toLowerCase();
+  const slug = base
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "default-slug";
 }
 
 async function exists(absolutePath: string): Promise<boolean> {
