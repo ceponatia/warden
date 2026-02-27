@@ -43,6 +43,13 @@ function isWardenBranch(branchName: string): boolean {
   return branchName.startsWith("warden/");
 }
 
+const DEFAULT_AGENT_NAME = "lint-fix-agent";
+
+function extractAgentFromBranch(branchName: string): string {
+  const match = branchName.match(/^warden\/([^/]+)/);
+  return match?.[1] ?? DEFAULT_AGENT_NAME;
+}
+
 async function handleEvent(params: {
   event: string;
   payload: Record<string, unknown>;
@@ -115,7 +122,8 @@ async function handleDeleteEvent(
   const refType = payload.ref_type;
   const ref = payload.ref;
   if (refType === "branch" && typeof ref === "string" && isWardenBranch(ref)) {
-    await recordMergeResult(slug, "lint-fix-agent", "modified");
+    const agentName = extractAgentFromBranch(ref);
+    await recordMergeResult(slug, agentName, "modified");
   }
 }
 
@@ -143,10 +151,11 @@ async function handlePullRequestEvent(
   }
 
   if (action === "closed") {
+    const agentName = extractAgentFromBranch(pr.head?.ref ?? "");
     if (merged) {
-      await recordMergeResult(slug, "lint-fix-agent", "accepted");
+      await recordMergeResult(slug, agentName, "accepted");
     } else {
-      await recordMergeResult(slug, "lint-fix-agent", "rejected");
+      await recordMergeResult(slug, agentName, "rejected");
     }
   }
 
@@ -168,7 +177,8 @@ async function handlePullRequestReviewEvent(
   const body = review?.body?.trim() ?? "";
   const approved = review?.state === "APPROVED" && body.length === 0;
   const comments = approved ? [] : [body || review?.state || "reviewed"];
-  await recordPrReviewResult(slug, "lint-fix-agent", approved, comments);
+  const agentName = extractAgentFromBranch(pr.head?.ref ?? "");
+  await recordPrReviewResult(slug, agentName, approved, comments);
 }
 
 type WebhookPullRequest = {
