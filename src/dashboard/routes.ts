@@ -9,6 +9,8 @@ import { listCodes, lookupCode } from "../findings/registry.js";
 import { readJsonIfPresent } from "../snapshots.js";
 import type { StructuredReport } from "../types/report.js";
 import type { WorkDocumentStatus } from "../types/work.js";
+import { loadAutonomyConfig } from "../work/autonomy.js";
+import { loadImpactRecords } from "../work/impact.js";
 import { loadAllTrustMetrics } from "../work/trust.js";
 import {
   addNote,
@@ -193,7 +195,10 @@ async function renderRepoTrends(
   const allFiles = (await listReportFiles(slug)).filter((f) =>
     f.endsWith(".json"),
   );
-  const filesInRange = allFiles.slice(0, Math.min(allFiles.length, Math.max(1, rangeDays)));
+  const filesInRange = allFiles.slice(
+    0,
+    Math.min(allFiles.length, Math.max(1, rangeDays)),
+  );
   const reports: StructuredReport[] = [];
 
   for (const file of filesInRange) {
@@ -364,6 +369,8 @@ async function renderAgentsView(slug: string): Promise<string> {
   const trust = await loadAllTrustMetrics(slug);
   const docs = await loadWorkDocuments(slug);
   const agentDocs = docs.filter((d) => Boolean(d.assignedTo));
+  const autonomyConfig = await loadAutonomyConfig(slug);
+  const impacts = await loadImpactRecords(slug);
 
   const trustRows = trust
     .map(
@@ -379,10 +386,27 @@ async function renderAgentsView(slug: string): Promise<string> {
     )
     .join("");
 
+  const grantRows = autonomyConfig.rules
+    .map(
+      (rule) =>
+        `<tr><td>${escapeHtml(rule.agentName)}</td><td>${rule.enabled ? "yes" : "no"}</td><td>${escapeHtml(rule.allowedCodes?.join(", ") ?? "all")}</td><td>${escapeHtml(rule.maxSeverity ?? autonomyConfig.globalDefaults.maxSeverity)}</td><td>${escapeHtml(rule.grantedAt.slice(0, 10))}</td><td>${escapeHtml(rule.revocationReason ?? "-")}</td></tr>`,
+    )
+    .join("");
+
+  const impactRows = impacts
+    .slice(0, 20)
+    .map(
+      (record) =>
+        `<tr><td>${escapeHtml(record.agentName)}</td><td>${escapeHtml(record.findingCode)}</td><td>${escapeHtml(record.branch)}</td><td>${escapeHtml(record.mergedAt.slice(0, 10))}</td><td>${escapeHtml(record.impact.newFindingsIntroduced.join(", ") || "none")}</td><td>${record.impact.revertDetected ? "yes" : "no"}</td><td>${record.impact.subsequentChurn}</td></tr>`,
+    )
+    .join("");
+
   return renderPage(
     `Agent Activity: ${slug}`,
     `<div class="card"><h2>Trust Scores</h2><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Pass Rate</th><th>Clean Merges</th><th>Total Runs</th></tr></thead><tbody>${trustRows}</tbody></table></div></div>
-    <div class="card"><h2>Activity</h2><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Finding</th><th>Status</th><th>Branch</th><th>Validation</th><th>Attempts</th></tr></thead><tbody>${activityRows}</tbody></table></div></div>`,
+    <div class="card"><h2>Activity</h2><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Finding</th><th>Status</th><th>Branch</th><th>Validation</th><th>Attempts</th></tr></thead><tbody>${activityRows}</tbody></table></div></div>
+    <div class="card"><h2>Autonomy Grants</h2><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Enabled</th><th>Allowed Codes</th><th>Max Severity</th><th>Granted</th><th>Revocation</th></tr></thead><tbody>${grantRows}</tbody></table></div></div>
+    <div class="card"><h2>Auto-Merge Impact</h2><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Code</th><th>Branch</th><th>Merged</th><th>New Findings</th><th>Reverted</th><th>Churn</th></tr></thead><tbody>${impactRows}</tbody></table></div></div>`,
     slug,
   );
 }
@@ -464,9 +488,7 @@ export function registerDashboardRoutes(app: Express): void {
     if (slug === null) return;
     const range =
       typeof req.query.range === "string" ? req.query.range : undefined;
-    res
-      .type("html")
-      .send(await renderRepoTrends(slug, readRangeQuery(range)));
+    res.type("html").send(await renderRepoTrends(slug, readRangeQuery(range)));
   });
 
   app.get("/repo/:slug/work", async (req: Request, res: Response) => {

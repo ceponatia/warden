@@ -55,3 +55,52 @@ export interface TrustMetrics {
   totalRuns: number;
   lastRunAt: string;
 }
+
+export interface AutonomyGlobalDefaults {
+  minConsecutiveCleanMerges: number;
+  minValidationPassRate: number;
+  minTotalRuns: number;
+  maxSeverity: Severity;
+}
+
+export interface AutonomyRuleConditions {
+  minConsecutiveCleanMerges?: number;
+  minValidationPassRate?: number;
+  minTotalRuns?: number;
+}
+
+export interface AutonomyRule {
+  agentName: string;
+  enabled: boolean;
+  grantedAt: string;
+  grantedBy: "manual";
+  allowedCodes?: string[];
+  maxSeverity?: Severity;
+  conditions: AutonomyRuleConditions;
+  revokedAt?: string;
+  revocationReason?: string;
+}
+
+export interface AutonomyConfig {
+  rules: AutonomyRule[];
+  globalDefaults: AutonomyGlobalDefaults;
+}
+
+export interface MergeImpactAssessment {
+  newFindingsIntroduced: string[];
+  findingsResolved: string[];
+  revertDetected: boolean;
+  subsequentChurn: number;
+}
+
+export interface MergeImpactRecord {
+  mergeId: string;
+  agentName: string;
+  findingCode: string;
+  branch: string;
+  files: string[];
+  mergedAt: string;
+  autoMerged: boolean;
+  impact: MergeImpactAssessment;
+  assessedAt: string;
+}
