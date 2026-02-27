@@ -1,4 +1,5 @@
 import type {
+  GithubRepoConfig,
   RepoConfig,
   RepoRetention,
   RepoThresholds,
@@ -110,6 +111,29 @@ function normalizeSuppressions(value: unknown): RepoSuppression[] {
     .filter((item) => item.pattern.length > 0 && item.codes.length > 0);
 }
 
+function normalizeGithubConfig(value: unknown): GithubRepoConfig | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const raw = value as Partial<GithubRepoConfig>;
+  if (
+    typeof raw.owner !== "string" ||
+    typeof raw.repo !== "string" ||
+    typeof raw.url !== "string"
+  ) {
+    return undefined;
+  }
+
+  return {
+    owner: raw.owner,
+    repo: raw.repo,
+    url: raw.url,
+    defaultBranch:
+      typeof raw.defaultBranch === "string" ? raw.defaultBranch : undefined,
+  };
+}
+
 function normalizeRetention(
   rawRetention: Partial<RepoRetention> | undefined,
 ): RepoRetention {
@@ -144,6 +168,8 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
     slug: raw.slug,
     path: raw.path,
     type: raw.type,
+    source: raw.source === "github" ? "github" : "local",
+    github: normalizeGithubConfig(raw.github),
     sourceRoots: asStringArray(raw.sourceRoots ?? [], "sourceRoots"),
     testPatterns: asStringArray(raw.testPatterns ?? [], "testPatterns"),
     docFiles: asStringArray(raw.docFiles ?? [], "docFiles"),

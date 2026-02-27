@@ -17,10 +17,30 @@ export interface RepoRetention {
   reports: number;
 }
 
+export interface GithubRepoConfig {
+  owner: string;
+  repo: string;
+  url: string;
+  defaultBranch?: string;
+}
+
+export interface WebhookConfig {
+  enabled: boolean;
+  port: number;
+  secret: string;
+  triggers: {
+    onPush: boolean;
+    onPullRequestMerge: boolean;
+    onBranchDelete: boolean;
+  };
+}
+
 export interface RepoConfig {
   slug: string;
   path: string;
   type: string;
+  source?: "local" | "github";
+  github?: GithubRepoConfig;
   sourceRoots: string[];
   testPatterns: string[];
   docFiles: string[];

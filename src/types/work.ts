@@ -49,11 +49,18 @@ export interface TrustMetrics {
   mergesAccepted: number;
   mergesModified: number;
   mergesRejected: number;
+  prReviewScore: number;
   validationPassRate: number;
   selfRepairRate: number;
   consecutiveCleanMerges: number;
   totalRuns: number;
   lastRunAt: string;
+}
+
+export interface PrReviewRecord {
+  reviewedAt: string;
+  passed: boolean;
+  comments: string[];
 }
 
 export interface AutonomyGlobalDefaults {

@@ -12,14 +12,16 @@ import {
   DEFAULT_RETENTION,
   DEFAULT_THRESHOLDS,
 } from "../../config/schema.js";
-import { readGitIgnore, runCommand } from "../../collectors/utils.js";
+import { readGitIgnore, runCommand, runCommandSafe } from "../../collectors/utils.js";
+import { ensureGithubClone, parseGithubRepoSpec } from "../../github/repo.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 
-function toSlug(repoPath: string): string {
-  return path
-    .basename(repoPath)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-");
+function toSlug(input: string): string {
+  const base = path.basename(input).toLowerCase();
+  const slug = base
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "default-slug";
 }
 
 async function exists(absolutePath: string): Promise<boolean> {
@@ -95,29 +97,32 @@ function detectTestPatterns(): string[] {
   ];
 }
 
-export async function runInitCommand(targetPath: string): Promise<void> {
-  const repoPath = path.resolve(process.cwd(), targetPath);
-  const slug = toSlug(repoPath);
-
-  await runCommand("git", ["rev-parse", "--git-dir"], repoPath);
+async function buildRepoConfigFromPath(params: {
+  slug: string;
+  repoPath: string;
+  source: "local" | "github";
+  github?: RepoConfig["github"];
+}): Promise<RepoConfig> {
+  await runCommand("git", ["rev-parse", "--git-dir"], params.repoPath);
 
   const [type, sourceRoots, docFiles, gitIgnorePatterns] = await Promise.all([
-    detectType(repoPath),
-    detectSourceRoots(repoPath),
-    detectDocFiles(repoPath),
-    readGitIgnore(repoPath),
+    detectType(params.repoPath),
+    detectSourceRoots(params.repoPath),
+    detectDocFiles(params.repoPath),
+    readGitIgnore(params.repoPath),
   ]);
 
   const ignorePatterns = [
     ...new Set(["node_modules", "dist", ".next", ...gitIgnorePatterns]),
   ];
-  const scopeFile = `config/${slug}.scope`;
+  const scopeFile = `config/${params.slug}.scope`;
 
-  const config: RepoConfig = {
-    slug,
-    path: repoPath,
+  return {
+    slug: params.slug,
+    path: params.repoPath,
     type,
-    source: "local",
+    source: params.source,
+    github: params.github,
     sourceRoots,
     testPatterns: detectTestPatterns(),
     docFiles,
@@ -127,32 +132,84 @@ export async function runInitCommand(targetPath: string): Promise<void> {
     retention: { ...DEFAULT_RETENTION },
     commitThreshold: DEFAULT_COMMIT_THRESHOLD,
   };
+}
 
+async function initializeArtifacts(config: RepoConfig): Promise<void> {
   await upsertRepoConfig(config);
-  const allowlistPath = await ensureStarterAllowlist(config);
+  await ensureStarterAllowlist(config);
+  const ignorePatterns = await readGitIgnore(config.path);
   await generateDefaultScopeFile(
-    getDefaultScopeFilePath(slug),
-    gitIgnorePatterns,
+    getDefaultScopeFilePath(config.slug),
+    ignorePatterns,
   );
 
-  const snapshotsPath = path.resolve(process.cwd(), "data", slug, "snapshots");
-  const reportsPath = path.resolve(process.cwd(), "data", slug, "reports");
+  const dirs = ["snapshots", "reports", "analyses", "work"];
+  await Promise.all(
+    dirs.map((name) =>
+      mkdir(path.resolve(process.cwd(), "data", config.slug, name), {
+        recursive: true,
+      }),
+    ),
+  );
+}
 
-  await mkdir(snapshotsPath, { recursive: true });
-  await mkdir(reportsPath, { recursive: true });
+async function addLocalRepo(targetPath: string): Promise<void> {
+  const repoPath = path.resolve(process.cwd(), targetPath);
+  const slug = toSlug(repoPath);
+  const config = await buildRepoConfigFromPath({
+    slug,
+    repoPath,
+    source: "local",
+  });
+  await initializeArtifacts(config);
 
-  process.stdout.write(`Initialized ${slug} at ${repoPath}\n`);
-  process.stdout.write(`  Type: ${type}\n`);
-  process.stdout.write(
-    `  Source roots: ${sourceRoots.join(", ") || "(none detected)"}\n`,
+  process.stdout.write(`Added local repo ${slug} at ${repoPath}\n`);
+}
+
+async function addGithubRepo(target: string): Promise<void> {
+  const { owner, repo } = parseGithubRepoSpec(target);
+  const slug = toSlug(repo);
+  const clonePath = await ensureGithubClone({ owner, repo, slug });
+
+  const branchResult = await runCommandSafe(
+    "git",
+    ["symbolic-ref", "refs/remotes/origin/HEAD"],
+    clonePath,
   );
-  process.stdout.write(`  Test patterns: ${config.testPatterns.join(", ")}\n`);
-  process.stdout.write(
-    `  Doc files: ${docFiles.join(", ") || "(none detected)"}\n`,
-  );
-  process.stdout.write(`  Scope file: ${scopeFile}\n`);
-  process.stdout.write(
-    `  Allowlist file: ${path.relative(process.cwd(), allowlistPath)}\n`,
-  );
-  process.stdout.write(`  Config written to config/repos.json\n`);
+  const defaultBranch =
+    branchResult.exitCode === 0
+      ? branchResult.stdout.trim().replace("refs/remotes/origin/", "")
+      : "main";
+
+  const config = await buildRepoConfigFromPath({
+    slug,
+    repoPath: clonePath,
+    source: "github",
+    github: {
+      owner,
+      repo,
+      url: `https://github.com/${owner}/${repo}`,
+      defaultBranch,
+    },
+  });
+
+  await initializeArtifacts(config);
+
+  process.stdout.write(`Added GitHub repo ${owner}/${repo} as ${slug}\n`);
+  process.stdout.write(`  Clone path: ${clonePath}\n`);
+}
+
+export async function runAddCommand(target: string): Promise<void> {
+  if (!target) {
+    throw new Error(
+      "Missing target argument. Usage: warden add <path|github:owner/repo>",
+    );
+  }
+
+  if (target.startsWith("github:")) {
+    await addGithubRepo(target);
+    return;
+  }
+
+  await addLocalRepo(target);
 }

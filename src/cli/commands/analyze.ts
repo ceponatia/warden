@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
 import { runAnalysis } from "../../agents/runner.js";
+import { runCrossRepoAnalysis } from "../../github/cross-repo.js";
 import { loadAutonomyConfig } from "../../work/autonomy.js";
 import { loadImpactRecords } from "../../work/impact.js";
 import type { RepoConfig } from "../../types/snapshot.js";
@@ -213,5 +214,12 @@ export async function runAnalyzeCommand(repoSlug?: string): Promise<void> {
 
   for (const config of configs) {
     await analyzeRepo(config);
+  }
+
+  const crossRepo = await runCrossRepoAnalysis(configs);
+  if (crossRepo) {
+    process.stdout.write(
+      `Cross-repo analysis generated for ${crossRepo.repos.length} repositories.\n`,
+    );
   }
 }

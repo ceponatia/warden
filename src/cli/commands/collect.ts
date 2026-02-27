@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { getRepoConfigBySlug, loadRepoConfigs } from "../../config/loader.js";
 import { runCollectors } from "../../collectors/index.js";
+import { syncGithubClone } from "../../github/repo.js";
 import { pruneRepoArtifacts } from "../../retention.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 
@@ -12,6 +13,11 @@ function timestampFolderName(date: Date): string {
 
 async function collectForRepo(config: RepoConfig): Promise<void> {
   process.stdout.write(`Collecting data for ${config.slug}...\n`);
+  if (config.source === "github") {
+    process.stdout.write(`  Syncing clone from GitHub...\n`);
+    await syncGithubClone(config.path);
+  }
+
   const results = await runCollectors(config);
   const snapshotTimestamp = timestampFolderName(new Date());
   const snapshotDir = path.resolve(

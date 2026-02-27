@@ -6,4 +6,6 @@ dist/
 .vscode/
 .idea/
 .env
+config/github.json
+config/github-webhook.json
 package-lock.json
