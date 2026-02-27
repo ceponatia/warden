@@ -171,7 +171,10 @@ export async function readTransitiveVersionMap(
       if (ordered.length === 1) {
         collapsed.set(dep, ordered[0] ?? "");
       } else if (ordered.length > 1) {
-        collapsed.set(dep, ordered.join(" | "));
+        // Multiple versions within this repo: mark as "multi" so drift
+        // classification correctly returns "unknown" rather than parsing
+        // only the first version in the joined string.
+        collapsed.set(dep, "multi");
       }
     }
     return collapsed;

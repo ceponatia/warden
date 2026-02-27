@@ -450,8 +450,10 @@ export async function runAnalysis(
   );
 
   const allConfigs = await loadRepoConfigs();
+  const enableCrossRepo =
+    process.env.WARDEN_ENABLE_CROSS_REPO_ANALYSIS === "true";
   const crossRepo =
-    allConfigs.length >= 2
+    enableCrossRepo && allConfigs.length >= 2
       ? await runCrossRepoAnalysis(allConfigs, { persist: false })
       : null;
 

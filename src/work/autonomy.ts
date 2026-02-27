@@ -73,6 +73,23 @@ function normalizeConfig(input: Partial<AutonomyConfig>): AutonomyConfig {
   };
 }
 
+const VALID_SEVERITIES: Severity[] = ["S0", "S1", "S2", "S3", "S4", "S5"];
+
+function normalizeSeverityArray(value: unknown): Severity[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [...VALID_SEVERITIES];
+  }
+  const filtered = value.filter(
+    (v): v is Severity => typeof v === "string" && (VALID_SEVERITIES as string[]).includes(v),
+  );
+  return filtered.length > 0 ? filtered : [...VALID_SEVERITIES];
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string");
+}
+
 function normalizeGlobalConfig(
   input: Partial<GlobalAutonomyConfig>,
 ): GlobalAutonomyConfig {
@@ -86,12 +103,9 @@ function normalizeGlobalConfig(
           )
           .map((policy) => ({
             ...policy,
-            allowedSeverities:
-              policy.allowedSeverities && policy.allowedSeverities.length > 0
-                ? policy.allowedSeverities
-                : ["S0", "S1", "S2", "S3", "S4", "S5"],
-            allowedCodes: policy.allowedCodes ?? [],
-            appliesTo: policy.appliesTo ?? [],
+            allowedSeverities: normalizeSeverityArray(policy.allowedSeverities),
+            allowedCodes: normalizeStringArray(policy.allowedCodes),
+            appliesTo: normalizeStringArray(policy.appliesTo),
             createdAt: policy.createdAt ?? new Date().toISOString(),
             createdBy: "manual",
           }))
@@ -220,6 +234,7 @@ export async function checkAutoMergeEligibility(params: {
   agentName: string;
   findingCode: string;
   severity: Severity;
+  repoSlugs?: string[];
 }): Promise<AutonomyDecision> {
   const config = await loadAutonomyConfig(params.slug);
   const rule = config.rules.find(
@@ -273,8 +288,9 @@ export async function checkAutoMergeEligibility(params: {
   );
 
   if (applicablePolicies.length > 0) {
-    const repoSlugs = (await loadRepoConfigs()).map((entry) => entry.slug);
-    const aggregate = await computeAggregateTrust(params.agentName, repoSlugs);
+    const slugs =
+      params.repoSlugs ?? (await loadRepoConfigs()).map((entry) => entry.slug);
+    const aggregate = await computeAggregateTrust(params.agentName, slugs);
     const matchedPolicy = applicablePolicies.find(
       (policy) => aggregate.aggregateScore >= policy.minAggregateScore,
     );
@@ -308,6 +324,10 @@ export async function checkAutoMergeEligibility(params: {
   };
 }
 
+function sortedUnique(arr: string[]): string[] {
+  return [...new Set(arr)].sort();
+}
+
 export async function grantGlobalAutonomyPolicy(params: {
   agentName: string;
   minAggregateScore: number;
@@ -323,8 +343,8 @@ export async function grantGlobalAutonomyPolicy(params: {
       params.allowedSeverities && params.allowedSeverities.length > 0
         ? params.allowedSeverities
         : ["S0", "S1", "S2", "S3", "S4", "S5"],
-    allowedCodes: params.allowedCodes ?? [],
-    appliesTo: params.appliesTo ?? [],
+    allowedCodes: sortedUnique(params.allowedCodes ?? []),
+    appliesTo: sortedUnique(params.appliesTo ?? []),
     createdAt: new Date().toISOString(),
     createdBy: "manual",
   };
@@ -332,9 +352,10 @@ export async function grantGlobalAutonomyPolicy(params: {
   const index = config.policies.findIndex(
     (entry) =>
       entry.agentName === policy.agentName &&
-      JSON.stringify(entry.allowedCodes) ===
+      JSON.stringify(sortedUnique(entry.allowedCodes)) ===
         JSON.stringify(policy.allowedCodes) &&
-      JSON.stringify(entry.appliesTo) === JSON.stringify(policy.appliesTo),
+      JSON.stringify(sortedUnique(entry.appliesTo)) ===
+        JSON.stringify(policy.appliesTo),
   );
 
   if (index >= 0) {
@@ -435,12 +456,14 @@ export async function tryAutoMergeForWorkDocument(params: {
   agentName: string;
   sourceBranch: string;
   targetBranch: string;
+  repoSlugs?: string[];
 }): Promise<{ merged: boolean; reason: string }> {
   const decision = await checkAutoMergeEligibility({
     slug: params.slug,
     agentName: params.agentName,
     findingCode: params.doc.code,
     severity: params.doc.severity,
+    repoSlugs: params.repoSlugs,
   });
 
   if (!decision.eligible) {

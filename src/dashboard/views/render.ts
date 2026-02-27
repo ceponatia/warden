@@ -62,6 +62,10 @@ export function severityBadge(severity: string): string {
   return `<span class="badge badge-${severity.toLowerCase()}">${severity}</span>`;
 }
 
+export function safeJsonForScript(value: unknown): string {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
+}
+
 export function escapeHtml(input: string): string {
   return input
     .replaceAll("&", "&amp;")

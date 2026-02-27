@@ -15,7 +15,12 @@ import {
   saveWorkDocument,
 } from "../work/manager.js";
 import { renderAgentsView } from "./views/agents-view.js";
-import { escapeHtml, renderPage, severityBadge } from "./views/render.js";
+import {
+  escapeHtml,
+  renderPage,
+  safeJsonForScript,
+  severityBadge,
+} from "./views/render.js";
 import {
   renderPortfolioDriftPage,
   renderPortfolioOverviewPage,
@@ -30,9 +35,6 @@ async function renderMarkdownSafe(src: string): Promise<string> {
     allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes },
     allowedSchemes: ["http", "https", "mailto"],
   });
-}
-function safeJsonForScript(value: unknown): string {
-  return JSON.stringify(value).replaceAll("<", "\\u003c");
 }
 async function listReportFiles(slug: string): Promise<string[]> {
   const reportsDir = path.resolve(process.cwd(), "data", slug, "reports");
