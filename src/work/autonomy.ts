@@ -113,7 +113,7 @@ function ruleMatchesScope(
   }
 
   const maxSeverity = rule.maxSeverity ?? globalDefaults.maxSeverity;
-  return severityRank(severity) >= severityRank(maxSeverity);
+  return severityRank(severity) <= severityRank(maxSeverity);
 }
 
 function metricsMeetThresholds(
