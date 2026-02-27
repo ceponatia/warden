@@ -54,6 +54,7 @@ async function appendReviewRecord(
 
   current.unshift(record);
   const capped = current.slice(0, 100);
+  await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(capped, null, 2)}\n`, "utf8");
 }
 
