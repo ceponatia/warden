@@ -109,7 +109,17 @@ async function stopWebhook(): Promise<void> {
     throw new Error("Invalid webhook pid file.");
   }
 
-  process.kill(pid, "SIGTERM");
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch (error: unknown) {
+    const err = error as { code?: string };
+    if (err.code !== "ESRCH") {
+      throw error;
+    }
+    process.stdout.write(
+      `Webhook process ${pid} is not running; cleaning up pid file.\n`,
+    );
+  }
   await rm(PID_PATH, { force: true });
   process.stdout.write(`Stopped webhook process ${pid}\n`);
 }
