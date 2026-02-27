@@ -49,15 +49,15 @@ export async function ensureGithubClone(params: {
       ["pull", "--ff-only", "origin", "main"],
       clonePath,
     ).catch(async () => {
-      const branch = (
-        await runCommand(
-          "git",
-          ["symbolic-ref", "refs/remotes/origin/HEAD"],
-          clonePath,
-        )
-      )
-        .trim()
-        .replace("refs/remotes/origin/", "");
+      const branchResult = await runCommandSafe(
+        "git",
+        ["symbolic-ref", "refs/remotes/origin/HEAD"],
+        clonePath,
+      );
+      const branch =
+        branchResult.exitCode === 0
+          ? branchResult.stdout.trim().replace("refs/remotes/origin/", "")
+          : "main";
       await runCommand(
         "git",
         ["pull", "--ff-only", "origin", branch],

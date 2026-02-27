@@ -188,10 +188,18 @@ function isWardenPullRequest(pr: WebhookPullRequest): boolean {
   return typeof headRef === "string" && isWardenBranch(headRef);
 }
 
+const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
+
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
+  let totalBytes = 0;
   for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    const buf = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    totalBytes += buf.length;
+    if (totalBytes > MAX_BODY_BYTES) {
+      throw new Error("Request body too large");
+    }
+    chunks.push(buf);
   }
   return Buffer.concat(chunks).toString("utf8");
 }
