@@ -291,7 +291,7 @@ function appendCoverage(
   }
 
   for (const coverage of bundle.coverage.files) {
-    if (coverage.lineCoverage < config.thresholds.lowCoveragePct) {
+    if (!coverage.isHighChurn && coverage.lineCoverage < config.thresholds.lowCoveragePct) {
       addFinding(findings, config, allowlistRules, {
         code: "WD-M7-001",
         metric: "M7",
