@@ -12,6 +12,17 @@ export type WorkDocumentStatus =
   | "resolved"
   | "wont-fix";
 
+export const VALID_STATUSES: WorkDocumentStatus[] = [
+  "unassigned",
+  "auto-assigned",
+  "agent-in-progress",
+  "agent-complete",
+  "pm-review",
+  "blocked",
+  "resolved",
+  "wont-fix",
+];
+
 export interface WorkDocumentNote {
   timestamp: string;
   author: string;

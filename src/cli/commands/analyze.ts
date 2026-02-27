@@ -154,6 +154,8 @@ function buildMetricSnapshots(
     todoCount: result.snapshot.debtMarkers.summary.totalTodos,
     complexityFindings: result.snapshot.complexity?.summary.totalFindings ?? 0,
     boundaryViolations,
+    coverageAverage: result.snapshot.coverage?.summary.averageCoverage,
+    staleDocCount: result.snapshot.docStaleness?.summary.staleDocFiles,
   };
 }
 

@@ -122,3 +122,39 @@ pre {
   font-size: 22px;
   font-weight: 700;
 }
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgb(17 24 39 / 55%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-content {
+  width: min(900px, 92vw);
+  max-height: 85vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+}
+
+#command-output {
+  min-height: 320px;
+}
+
+.finding-row.selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
