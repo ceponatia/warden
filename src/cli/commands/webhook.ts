@@ -71,14 +71,30 @@ async function startWebhook(): Promise<void> {
     );
   }
 
+  const slugQueues = new Map<string, Promise<void>>();
+
+  function serializeBySlug(
+    slug: string,
+    fn: () => Promise<void>,
+  ): Promise<void> {
+    const prev = (slugQueues.get(slug) ?? Promise.resolve()).catch(() => undefined);
+    const next = prev.then(() => fn());
+    slugQueues.set(slug, next.catch(() => undefined));
+    return next;
+  }
+
   const server = startWebhookServer(config, {
     onPush: async (slug: string) => {
-      await runCollectCommand(slug);
-      await runAnalyzeCommand(slug);
+      await serializeBySlug(slug, async () => {
+        await runCollectCommand(slug);
+        await runAnalyzeCommand(slug);
+      });
     },
     onPullRequestMerged: async (slug: string) => {
-      await runCollectCommand(slug);
-      await runAnalyzeCommand(slug);
+      await serializeBySlug(slug, async () => {
+        await runCollectCommand(slug);
+        await runAnalyzeCommand(slug);
+      });
     },
     resolveSlugByRepo,
   });
