@@ -16,6 +16,11 @@ import {
 } from "../work/manager.js";
 import { renderAgentsView } from "./views/agents-view.js";
 import { escapeHtml, renderPage, severityBadge } from "./views/render.js";
+import {
+  renderPortfolioDriftPage,
+  renderPortfolioOverviewPage,
+  renderPortfolioTrendsPage,
+} from "./portfolio-routes.js";
 import { registerWikiRoutes } from "./wiki-routes.js";
 const rawMarked = new Marked();
 async function renderMarkdownSafe(src: string): Promise<string> {
@@ -458,6 +463,19 @@ export function registerDashboardRoutes(app: Express): void {
     const slug = getValidatedSlug(req, res);
     if (!slug) return;
     res.type("html").send(await renderAgentsView(slug));
+  });
+  app.get("/portfolio", async (_req, res) => {
+    res.type("html").send(await renderPortfolioOverviewPage());
+  });
+  app.get("/portfolio/trends", async (req, res) => {
+    const range =
+      typeof req.query.range === "string" ? req.query.range : undefined;
+    const metric =
+      typeof req.query.metric === "string" ? req.query.metric : "M4";
+    res.type("html").send(await renderPortfolioTrendsPage(metric, range));
+  });
+  app.get("/portfolio/drift", async (_req, res) => {
+    res.type("html").send(await renderPortfolioDriftPage());
   });
   registerWikiRoutes(app);
 }
