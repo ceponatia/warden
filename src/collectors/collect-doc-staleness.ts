@@ -13,6 +13,10 @@ import type {
 import { daysBetween, normalizePath, runCommand, runCommandSafe } from "./utils.js";
 
 const SOURCE_FILE_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+// Maximum source paths per doc evaluated for staleness; limits git command length
+const MAX_DESCRIBED_PATHS = 150;
+// Maximum total bytes loaded into the source/doc blob before issuing a warning
+const MAX_BLOB_BYTES = 5 * 1024 * 1024; // 5 MiB
 const DOC_HINT_FILES = new Set([
   "README.md",
   "AGENTS.md",
@@ -36,6 +40,10 @@ interface ExportDecl {
 function isDocFile(filePath: string): boolean {
   const base = path.basename(filePath);
   return filePath.endsWith(".md") || DOC_HINT_FILES.has(base) || filePath.startsWith("docs/");
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseReferences(markdown: string): DocReference[] {
@@ -278,7 +286,7 @@ async function findOrphanedRefs(
         continue;
       }
 
-      const tokenRegex = new RegExp(`\\b${ref.reference}\\b`);
+      const tokenRegex = new RegExp(`\\b${escapeRegex(ref.reference)}\\b`);
       if (!tokenRegex.test(sourceBlob)) {
         orphaned.push({
           docPath,
@@ -315,7 +323,7 @@ async function findUndocumentedApis(
     const exports = extractExports(sourcePath, content);
 
     for (const exported of exports) {
-      const tokenRegex = new RegExp(`\\b${exported.exportName}\\b`);
+      const tokenRegex = new RegExp(`\\b${escapeRegex(exported.exportName)}\\b`);
       if (!tokenRegex.test(docsText)) {
         undocumented.push(exported);
       }
@@ -341,15 +349,39 @@ export async function collectDocStaleness(
   const staleDocFiles: StaleDocEntry[] = [];
   const docsContent: string[] = [];
   const sourceContent: string[] = [];
+  let sourceBlobBytes = 0;
+  let docBlobBytes = 0;
+  let sourceBlobTruncated = false;
+  let docBlobTruncated = false;
 
   for (const sourcePath of sources) {
     const content = await readFile(path.resolve(config.path, sourcePath), "utf8");
+    sourceBlobBytes += content.length;
+    if (sourceBlobBytes > MAX_BLOB_BYTES) {
+      if (!sourceBlobTruncated) {
+        sourceBlobTruncated = true;
+        console.warn(
+          `[warden] collect-doc-staleness: source blob exceeded ${MAX_BLOB_BYTES} bytes; remaining source files skipped for orphaned-ref check`,
+        );
+      }
+      break;
+    }
     sourceContent.push(content);
   }
 
   for (const docPath of docs) {
     const content = await readFile(path.resolve(config.path, docPath), "utf8");
-    docsContent.push(content);
+    if (docBlobBytes + content.length > MAX_BLOB_BYTES) {
+      if (!docBlobTruncated) {
+        docBlobTruncated = true;
+        console.warn(
+          `[warden] collect-doc-staleness: doc blob exceeded ${MAX_BLOB_BYTES} bytes; remaining doc files skipped for undocumented-api check`,
+        );
+      }
+    } else {
+      docBlobBytes += content.length;
+      docsContent.push(content);
+    }
 
     const refs = parseReferences(content);
     const described =
@@ -359,7 +391,7 @@ export async function collectDocStaleness(
           ? describedByReadme(docPath, sources)
           : describedByReferences(docPath, refs, trackedSet);
 
-    const staleEntry = await buildStaleDocEntry(config, docPath, described.slice(0, 150));
+    const staleEntry = await buildStaleDocEntry(config, docPath, described.slice(0, MAX_DESCRIBED_PATHS));
     if (staleEntry) {
       staleDocFiles.push(staleEntry);
     }

@@ -130,26 +130,31 @@ function toCorrelatedChurnLines(gitStats: GitStatsSnapshot): string[] {
     );
 }
 
-function toCoverageLines(coverage: CoverageSnapshot | null): {
+function toCoverageLines(
+  coverage: CoverageSnapshot | null,
+  config: RepoConfig,
+): {
   lowCoverage: string[];
   highChurnUncovered: string[];
   regressions: string[];
 } {
   const files = coverage?.files ?? [];
+  const lowPct = config.thresholds.lowCoveragePct;
+  const regressionPct = config.thresholds.coverageRegressionPct;
   return {
     lowCoverage: files
-      .filter((entry) => entry.lineCoverage < 50)
+      .filter((entry) => !entry.isHighChurn && entry.lineCoverage < lowPct)
       .slice(0, 15)
       .map((entry) => `${entry.path}: ${entry.lineCoverage}% line coverage`),
     highChurnUncovered: files
-      .filter((entry) => entry.isHighChurn && entry.lineCoverage < 50)
+      .filter((entry) => entry.isHighChurn && entry.lineCoverage < lowPct)
       .slice(0, 15)
       .map(
         (entry) =>
           `${entry.path}: ${entry.lineCoverage}% coverage, ${entry.churnEdits ?? 0} edits in 7d`,
       ),
     regressions: files
-      .filter((entry) => (entry.lineCoverageDelta ?? 0) < -10)
+      .filter((entry) => (entry.lineCoverageDelta ?? 0) <= -regressionPct)
       .slice(0, 15)
       .map(
         (entry) =>
@@ -303,7 +308,7 @@ export function renderTemplateReport(
     runtime,
   );
   const correlatedChurnLines = toCorrelatedChurnLines(gitStats);
-  const coverageLines = toCoverageLines(coverage);
+  const coverageLines = toCoverageLines(coverage, config);
   const docStalenessLines = toDocStalenessLines(docStaleness);
 
   const growthFileLines = window7d.files
