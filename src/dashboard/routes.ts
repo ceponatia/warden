@@ -2,10 +2,12 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Express, Request, Response } from "express";
 import { Marked } from "marked";
+import sanitizeHtml from "sanitize-html";
 import { loadRepoConfigs } from "../config/loader.js";
 import { readJsonIfPresent } from "../snapshots.js";
 import type { StructuredReport } from "../types/report.js";
 import type { WorkDocumentStatus } from "../types/work.js";
+import { VALID_STATUSES } from "../types/work.js";
 import {
   addNote,
   loadWorkDocument,
@@ -15,20 +17,14 @@ import {
 import { renderAgentsView } from "./views/agents-view.js";
 import { escapeHtml, renderPage, severityBadge } from "./views/render.js";
 import { registerWikiRoutes } from "./wiki-routes.js";
-const sanitizedMarked = new Marked();
-sanitizedMarked.use({ renderer: { html: () => "" } });
-const VALID_STATUSES: WorkDocumentStatus[] = [
-  "unassigned",
-  "auto-assigned",
-  "agent-in-progress",
-  "agent-complete",
-  "pm-review",
-  "blocked",
-  "resolved",
-  "wont-fix",
-];
+const rawMarked = new Marked();
 async function renderMarkdownSafe(src: string): Promise<string> {
-  return sanitizedMarked.parse(src);
+  const raw = await rawMarked.parse(src);
+  return sanitizeHtml(raw, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["h1", "h2", "h3"]),
+    allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes },
+    allowedSchemes: ["http", "https", "mailto"],
+  });
 }
 function safeJsonForScript(value: unknown): string {
   return JSON.stringify(value).replaceAll("<", "\\u003c");

@@ -3,15 +3,20 @@ import path from "node:path";
 
 import type { Express, Request, Response } from "express";
 import { Marked } from "marked";
+import sanitizeHtml from "sanitize-html";
 
 import { listCodes, lookupCode } from "../findings/registry.js";
 import { escapeHtml, renderPage } from "./views/render.js";
 
 const wikiMarked = new Marked();
-wikiMarked.use({ renderer: { html: () => "" } });
 
 async function renderMarkdownSafe(src: string): Promise<string> {
-  return wikiMarked.parse(src);
+  const raw = await wikiMarked.parse(src);
+  return sanitizeHtml(raw, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["h1", "h2", "h3"]),
+    allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes },
+    allowedSchemes: ["http", "https", "mailto"],
+  });
 }
 
 async function renderWikiIndex(search: string): Promise<string> {

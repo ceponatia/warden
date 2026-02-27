@@ -1,6 +1,6 @@
 import type { Server } from "node:http";
 
-import { WebSocketServer, type WebSocket } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 
 export interface DashboardWsEvent {
   type:
@@ -31,7 +31,7 @@ export class DashboardWebSocketHub {
     server: Server,
     private readonly isValidSlug: (slug: string) => boolean,
   ) {
-    this.wss = new WebSocketServer({ server, path: "/ws" });
+    this.wss = new WebSocketServer({ server, path: "/ws", maxPayload: 64 * 1024 });
     this.wss.on("connection", (socket) => {
       const state: ClientState = { socket, subscriptions: new Set() };
       this.clients.add(state);
@@ -59,7 +59,7 @@ export class DashboardWebSocketHub {
       if (!state.subscriptions.has(event.slug)) {
         continue;
       }
-      if (state.socket.readyState !== state.socket.OPEN) {
+      if (state.socket.readyState !== WebSocket.OPEN) {
         continue;
       }
       state.socket.send(text);
