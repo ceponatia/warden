@@ -20,6 +20,8 @@ export interface StructuredReport {
     todoCount: number;
     complexityFindings: number;
     boundaryViolations: number;
+    coverageAverage?: number;
+    staleDocCount?: number;
   };
 }
 

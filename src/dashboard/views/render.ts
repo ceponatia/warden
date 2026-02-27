@@ -1,3 +1,9 @@
+interface RenderPageOptions {
+  slug?: string;
+  bodyAttrs?: Record<string, string>;
+  scripts?: string[];
+}
+
 function nav(slug?: string): string {
   const repoLinks = slug
     ? `<a href="/repo/${encodeURIComponent(slug)}">Repo</a>
@@ -13,8 +19,23 @@ function nav(slug?: string): string {
   </nav>`;
 }
 
-export function renderPage(title: string, body: string, slug?: string): string {
+function renderBodyAttrs(attrs: Record<string, string> | undefined): string {
+  if (!attrs) {
+    return "";
+  }
+  return Object.entries(attrs)
+    .map(([key, value]) => `${key}="${escapeHtml(value)}"`)
+    .join(" ");
+}
+
+export function renderPage(
+  title: string,
+  body: string,
+  options: RenderPageOptions = {},
+): string {
   const safeTitle = escapeHtml(title);
+  const bodyAttrs = renderBodyAttrs(options.bodyAttrs);
+  const scripts = options.scripts ?? [];
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -23,12 +44,13 @@ export function renderPage(title: string, body: string, slug?: string): string {
     <title>${safeTitle}</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
-  <body>
+  <body ${bodyAttrs}>
     <main>
       <h1>${safeTitle}</h1>
-      ${nav(slug)}
+      ${nav(options.slug)}
       ${body}
     </main>
+    ${scripts.map((src) => `<script src="${escapeHtml(src)}"></script>`).join("\n")}
   </body>
 </html>`;
 }
