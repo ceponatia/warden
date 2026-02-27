@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
@@ -109,6 +109,107 @@ async function getCurrentBranch(repoPath: string): Promise<string> {
   return stdout.trim();
 }
 
+function createLintFixBranchName(): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `warden/lint-fix-${timestamp}`;
+}
+
+async function readTargetFile(absolutePath: string): Promise<string | null> {
+  try {
+    return await readFile(absolutePath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+async function cleanupDraftBranch(
+  repoPath: string,
+  originalBranch: string,
+  branchName: string,
+): Promise<void> {
+  try {
+    await execFileAsync("git", ["checkout", originalBranch], {
+      cwd: repoPath,
+    });
+    await execFileAsync("git", ["branch", "-D", branchName], {
+      cwd: repoPath,
+    });
+  } catch {
+    // Best effort cleanup
+  }
+}
+
+interface LintRepairResult {
+  passed: boolean;
+  attempts: number;
+  lastError: string;
+}
+
+async function runRepairLoop(params: {
+  repoPath: string;
+  docPath: string;
+  absolutePath: string;
+  originalContent: string;
+  correctedContent: string;
+  originalBranch: string;
+  branchName: string;
+}): Promise<LintRepairResult> {
+  let correctedContent = params.correctedContent;
+  let passed = false;
+  let lastError = "";
+  let attempts = 0;
+
+  for (attempts = 1; attempts <= MAX_REPAIR_ATTEMPTS; attempts++) {
+    try {
+      await createDraftBranch(params.repoPath, params.branchName);
+    } catch {
+      // Branch may already exist from a previous attempt
+    }
+
+    await writeFile(params.absolutePath, correctedContent, "utf8");
+
+    const result = await runValidation(params.repoPath);
+    if (result.passed) {
+      passed = true;
+      await commitAndReturn(
+        params.repoPath,
+        params.docPath,
+        params.branchName,
+        params.originalBranch,
+      );
+      break;
+    }
+
+    lastError = result.error;
+    await writeFile(params.absolutePath, params.originalContent, "utf8");
+
+    if (attempts < MAX_REPAIR_ATTEMPTS) {
+      correctedContent = await callProvider({
+        systemPrompt:
+          "You are a precise lint-fix agent. Fix the validation errors. Return file content only.",
+        userPrompt: buildRepairPrompt(
+          params.docPath,
+          correctedContent,
+          lastError,
+        ),
+        maxTokens: 4096,
+      });
+    }
+
+    await cleanupDraftBranch(
+      params.repoPath,
+      params.originalBranch,
+      params.branchName,
+    );
+  }
+
+  return {
+    passed,
+    attempts,
+    lastError,
+  };
+}
+
 export async function runLintFixAgent(
   config: RepoConfig,
   doc: WorkDocument,
@@ -119,87 +220,46 @@ export async function runLintFixAgent(
   }
 
   const absolutePath = path.resolve(config.path, doc.path);
-  let fileContent: string;
-  try {
-    fileContent = await readFile(absolutePath, "utf8");
-  } catch {
+  const fileContent = await readTargetFile(absolutePath);
+  if (!fileContent) {
     addNote(doc, "lint-fix-agent", `Could not read file: ${doc.path}`);
     return false;
   }
 
   const originalBranch = await getCurrentBranch(config.path);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const branchName = `warden/lint-fix-${timestamp}`;
+  const branchName = createLintFixBranchName();
 
-  let correctedContent = await callProvider({
+  const correctedContent = await callProvider({
     systemPrompt:
       "You are a precise lint-fix agent. Only fix the specific lint issue. Return file content only, no markdown fences.",
     userPrompt: buildLintFixPrompt(doc.path, fileContent, doc),
     maxTokens: 4096,
   });
 
-  let passed = false;
-  let lastError = "";
-  let attempts = 0;
-
-  for (attempts = 1; attempts <= MAX_REPAIR_ATTEMPTS; attempts++) {
-    try {
-      await createDraftBranch(config.path, branchName);
-    } catch {
-      // Branch may already exist from a previous attempt
-    }
-
-    const { writeFile: writeFileAsync } = await import("node:fs/promises");
-    await writeFileAsync(absolutePath, correctedContent, "utf8");
-
-    const result = await runValidation(config.path);
-    if (result.passed) {
-      passed = true;
-      await commitAndReturn(config.path, doc.path, branchName, originalBranch);
-      break;
-    }
-
-    lastError = result.error;
-
-    // Restore the original file before retry
-    await writeFileAsync(absolutePath, fileContent, "utf8");
-
-    if (attempts < MAX_REPAIR_ATTEMPTS) {
-      correctedContent = await callProvider({
-        systemPrompt:
-          "You are a precise lint-fix agent. Fix the validation errors. Return file content only.",
-        userPrompt: buildRepairPrompt(doc.path, correctedContent, lastError),
-        maxTokens: 4096,
-      });
-    }
-
-    // Return to original branch for next attempt
-    try {
-      await execFileAsync("git", ["checkout", originalBranch], {
-        cwd: config.path,
-      });
-      await execFileAsync("git", ["branch", "-D", branchName], {
-        cwd: config.path,
-      });
-    } catch {
-      // Best effort cleanup
-    }
-  }
+  const repairResult = await runRepairLoop({
+    repoPath: config.path,
+    docPath: doc.path,
+    absolutePath,
+    originalContent: fileContent,
+    correctedContent,
+    originalBranch,
+    branchName,
+  });
 
   doc.validationResult = {
-    passed,
-    attempts,
-    lastError: lastError || undefined,
+    passed: repairResult.passed,
+    attempts: repairResult.attempts,
+    lastError: repairResult.lastError || undefined,
   };
 
-  if (passed) {
+  if (repairResult.passed) {
     doc.status = "agent-complete";
     doc.assignedTo = "lint-fix-agent";
     doc.relatedBranch = branchName;
     addNote(
       doc,
       "lint-fix-agent",
-      `Fix applied on branch ${branchName}. Validation passed (attempt ${attempts}).`,
+      `Fix applied on branch ${branchName}. Validation passed (attempt ${repairResult.attempts}).`,
     );
 
     const autoMergeResult = await tryAutoMergeForWorkDocument({
@@ -244,10 +304,14 @@ export async function runLintFixAgent(
     addNote(
       doc,
       "lint-fix-agent",
-      `Fix failed after ${MAX_REPAIR_ATTEMPTS} attempts. Last error: ${lastError.slice(0, 200)}`,
+      `Fix failed after ${MAX_REPAIR_ATTEMPTS} attempts. Last error: ${repairResult.lastError.slice(0, 200)}`,
     );
   }
 
-  await recordValidationResult(config.slug, "lint-fix-agent", passed);
-  return passed;
+  await recordValidationResult(
+    config.slug,
+    "lint-fix-agent",
+    repairResult.passed,
+  );
+  return repairResult.passed;
 }

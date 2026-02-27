@@ -57,58 +57,173 @@ function renderAutoMergeActivity(params: {
   revoked: Awaited<ReturnType<typeof evaluateRevocations>>;
 }): string {
   const lines: string[] = ["## Auto-Merge Activity", ""];
-
-  const active = params.activeRules.filter((rule) => rule.enabled);
-  lines.push("### Grants Active");
-  if (active.length === 0) {
-    lines.push("(none)");
-  } else {
-    lines.push(
-      "| Agent | Allowed Codes | Max Severity | Since |",
-      "|-------|--------------|--------------|-------|",
-    );
-    for (const rule of active) {
-      lines.push(
-        `| ${rule.agentName} | ${rule.allowedCodes?.join(", ") ?? "all"} | ${rule.maxSeverity ?? "S3"} | ${rule.grantedAt.slice(0, 10)} |`,
-      );
-    }
-  }
-
-  lines.push("", "### Recent Auto-Merges");
-  const recent = params.impacts.slice(0, 10);
-  if (recent.length === 0) {
-    lines.push("(none this period)");
-  } else {
-    lines.push(
-      "| Agent | Code | Branch | Merged | Impact |",
-      "|-------|------|--------|--------|--------|",
-    );
-    for (const impact of recent) {
-      const status = impact.impact.revertDetected
-        ? "Reverted"
-        : impact.impact.newFindingsIntroduced.length > 0
-          ? `New findings: ${impact.impact.newFindingsIntroduced.join(", ")}`
-          : "Clean";
-      lines.push(
-        `| ${impact.agentName} | ${impact.findingCode} | ${impact.branch} | ${impact.mergedAt.slice(0, 10)} | ${status} |`,
-      );
-    }
-  }
-
-  lines.push("", "### Revocations");
-  if (params.revoked.length === 0) {
-    lines.push("(none this period)");
-  } else {
-    for (const rule of params.revoked) {
-      lines.push(`- ${rule.agentName}: ${rule.revocationReason ?? "revoked"}`);
-    }
-  }
+  lines.push(...renderActiveRulesSection(params.activeRules));
+  lines.push("", ...renderRecentAutoMergesSection(params.impacts));
+  lines.push("", ...renderRevocationsSection(params.revoked));
 
   return lines.join("\n");
 }
 
+function renderActiveRulesSection(
+  rules: Awaited<ReturnType<typeof loadAutonomyConfig>>["rules"],
+): string[] {
+  const lines: string[] = ["### Grants Active"];
+  const active = rules.filter((rule) => rule.enabled);
+  if (active.length === 0) {
+    lines.push("(none)");
+    return lines;
+  }
+
+  lines.push(
+    "| Agent | Allowed Codes | Max Severity | Since |",
+    "|-------|--------------|--------------|-------|",
+  );
+  for (const rule of active) {
+    lines.push(
+      `| ${rule.agentName} | ${rule.allowedCodes?.join(", ") ?? "all"} | ${rule.maxSeverity ?? "S3"} | ${rule.grantedAt.slice(0, 10)} |`,
+    );
+  }
+
+  return lines;
+}
+
+function renderRecentAutoMergesSection(
+  impacts: Awaited<ReturnType<typeof assessImpactRecords>>,
+): string[] {
+  const lines: string[] = ["### Recent Auto-Merges"];
+  const recent = impacts.slice(0, 10);
+  if (recent.length === 0) {
+    lines.push("(none this period)");
+    return lines;
+  }
+
+  lines.push(
+    "| Agent | Code | Branch | Merged | Impact |",
+    "|-------|------|--------|--------|--------|",
+  );
+  for (const impact of recent) {
+    lines.push(
+      `| ${impact.agentName} | ${impact.findingCode} | ${impact.branch} | ${impact.mergedAt.slice(0, 10)} | ${formatImpactStatus(impact)} |`,
+    );
+  }
+
+  return lines;
+}
+
+function formatImpactStatus(
+  impact: Awaited<ReturnType<typeof assessImpactRecords>>[number],
+): string {
+  if (impact.impact.revertDetected) {
+    return "Reverted";
+  }
+
+  if (impact.impact.newFindingsIntroduced.length > 0) {
+    return `New findings: ${impact.impact.newFindingsIntroduced.join(", ")}`;
+  }
+
+  return "Clean";
+}
+
+function renderRevocationsSection(
+  revoked: Awaited<ReturnType<typeof evaluateRevocations>>,
+): string[] {
+  const lines: string[] = ["### Revocations"];
+  if (revoked.length === 0) {
+    lines.push("(none this period)");
+    return lines;
+  }
+
+  for (const rule of revoked) {
+    lines.push(`- ${rule.agentName}: ${rule.revocationReason ?? "revoked"}`);
+  }
+
+  return lines;
+}
+
 export interface AnalysisOptions {
   compareBranch?: string;
+}
+
+interface BaselineContext {
+  baselineFindings: FindingInstance[];
+  delta: import("./delta.js").SnapshotDelta | undefined;
+  deltaContextLabel: string | undefined;
+}
+
+async function resolveBaselineContext(
+  config: RepoConfig,
+  options: AnalysisOptions | undefined,
+  currentSnapshot: LoadedSnapshot,
+  allowlistRules: Awaited<ReturnType<typeof loadAllowlist>>["rules"],
+): Promise<BaselineContext> {
+  if (options?.compareBranch) {
+    const baseline = await loadLatestSnapshotForBranch(
+      config.slug,
+      options.compareBranch,
+    );
+    return {
+      baselineFindings: evaluateFindings(config, baseline, allowlistRules),
+      delta: computeDelta(baseline, currentSnapshot),
+      deltaContextLabel: `vs branch ${options.compareBranch}`,
+    };
+  }
+
+  const previous = await loadPreviousSnapshot(config.slug);
+  if (!previous) {
+    return {
+      baselineFindings: [],
+      delta: undefined,
+      deltaContextLabel: undefined,
+    };
+  }
+
+  return {
+    baselineFindings: evaluateFindings(config, previous, allowlistRules),
+    delta: computeDelta(previous, currentSnapshot),
+    deltaContextLabel: "vs previous snapshot",
+  };
+}
+
+async function annotateRevokedAssignments(
+  slug: string,
+  docs: WorkDocument[],
+  revokedRules: Awaited<ReturnType<typeof evaluateRevocations>>,
+): Promise<void> {
+  if (revokedRules.length === 0) {
+    return;
+  }
+
+  for (const doc of docs) {
+    const revokedRule = revokedRules.find(
+      (rule) => rule.agentName === doc.assignedTo,
+    );
+    if (!revokedRule) {
+      continue;
+    }
+
+    addNote(
+      doc,
+      "autonomy",
+      `Auto-merge rights revoked for ${revokedRule.agentName}: ${revokedRule.revocationReason ?? "rule disabled"}`,
+    );
+    await saveWorkDocument(slug, doc);
+  }
+}
+
+function composeAnalysisWithStatus(params: {
+  analysis: string;
+  summary: WorkDocumentSummary;
+  activeRules: Awaited<ReturnType<typeof loadAutonomyConfig>>["rules"];
+  impacts: Awaited<ReturnType<typeof assessImpactRecords>>;
+  revoked: Awaited<ReturnType<typeof evaluateRevocations>>;
+}): string {
+  const workStatusSection = renderWorkDocumentStatus(params.summary);
+  const autoMergeSection = renderAutoMergeActivity({
+    activeRules: params.activeRules,
+    impacts: params.impacts,
+    revoked: params.revoked,
+  });
+  return `${params.analysis}\n\n${workStatusSection}\n\n${autoMergeSection}`;
 }
 
 async function updateExistingWorkDoc(
@@ -304,27 +419,12 @@ export async function runAnalysis(
     currentSnapshot,
     allowlist.rules,
   );
-
-  let delta = undefined;
-  let deltaContextLabel = undefined;
-  let baselineFindings: FindingInstance[] = [];
-
-  if (options?.compareBranch) {
-    const baseline = await loadLatestSnapshotForBranch(
-      config.slug,
-      options.compareBranch,
-    );
-    delta = computeDelta(baseline, currentSnapshot);
-    deltaContextLabel = `vs branch ${options.compareBranch}`;
-    baselineFindings = evaluateFindings(config, baseline, allowlist.rules);
-  } else {
-    const previous = await loadPreviousSnapshot(config.slug);
-    if (previous) {
-      delta = computeDelta(previous, currentSnapshot);
-      deltaContextLabel = "vs previous snapshot";
-      baselineFindings = evaluateFindings(config, previous, allowlist.rules);
-    }
-  }
+  const baselineContext = await resolveBaselineContext(
+    config,
+    options,
+    currentSnapshot,
+    allowlist.rules,
+  );
 
   const resolvedThisRun = await syncWorkDocuments(config.slug, currentFindings);
   const escalationMessages = await handleEscalations(config.slug);
@@ -339,24 +439,7 @@ export async function runAnalysis(
   });
   const autonomyConfig = await loadAutonomyConfig(config.slug);
   const allDocs = await loadWorkDocuments(config.slug);
-
-  if (revokedRules.length > 0) {
-    for (const doc of allDocs) {
-      const revokedRule = revokedRules.find(
-        (rule) => rule.agentName === doc.assignedTo,
-      );
-      if (!revokedRule) {
-        continue;
-      }
-
-      addNote(
-        doc,
-        "autonomy",
-        `Auto-merge rights revoked for ${revokedRule.agentName}: ${revokedRule.revocationReason ?? "rule disabled"}`,
-      );
-      await saveWorkDocument(config.slug, doc);
-    }
-  }
+  await annotateRevokedAssignments(config.slug, allDocs, revokedRules);
 
   const workDocumentSummary = buildWorkDocumentSummary(
     allDocs,
@@ -367,8 +450,8 @@ export async function runAnalysis(
   const userPrompt = assemblePrompt(
     config,
     currentSnapshot,
-    delta,
-    deltaContextLabel,
+    baselineContext.delta,
+    baselineContext.deltaContextLabel,
     currentFindings,
   );
   const analysis = await callProvider({
@@ -377,21 +460,24 @@ export async function runAnalysis(
     userPrompt,
   });
 
-  if (baselineFindings.length > 0) {
-    const improvements = findResolvedCodes(baselineFindings, currentFindings);
-    await updateWikiForResolved(
-      baselineFindings,
+  if (baselineContext.baselineFindings.length > 0) {
+    const improvements = findResolvedCodes(
+      baselineContext.baselineFindings,
       currentFindings,
-      deltaContextLabel,
-      delta,
     );
-    const workStatusSection = renderWorkDocumentStatus(workDocumentSummary);
-    const autoMergeSection = renderAutoMergeActivity({
+    await updateWikiForResolved(
+      baselineContext.baselineFindings,
+      currentFindings,
+      baselineContext.deltaContextLabel,
+      baselineContext.delta,
+    );
+    const fullAnalysis = composeAnalysisWithStatus({
+      analysis,
+      summary: workDocumentSummary,
       activeRules: autonomyConfig.rules,
       impacts,
       revoked: revokedRules,
     });
-    const fullAnalysis = `${analysis}\n\n${workStatusSection}\n\n${autoMergeSection}`;
 
     return {
       analysis: fullAnalysis,
@@ -403,13 +489,13 @@ export async function runAnalysis(
     };
   }
 
-  const workStatusSection = renderWorkDocumentStatus(workDocumentSummary);
-  const autoMergeSection = renderAutoMergeActivity({
+  const fullAnalysis = composeAnalysisWithStatus({
+    analysis,
+    summary: workDocumentSummary,
     activeRules: autonomyConfig.rules,
     impacts,
     revoked: revokedRules,
   });
-  const fullAnalysis = `${analysis}\n\n${workStatusSection}\n\n${autoMergeSection}`;
 
   return {
     analysis: fullAnalysis,

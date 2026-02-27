@@ -10,7 +10,7 @@
   },
   "scripts": {
     "warden": "tsx src/cli/index.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && echo \"typecheck OK\"",
     "lint": "eslint ."
   },
   "devDependencies": {

@@ -72,7 +72,12 @@ async function handleEvent(params: {
   }
 
   if (params.event === "pull_request") {
-    await handlePullRequestEvent(slug, params.payload, params.handlers, params.config);
+    await handlePullRequestEvent(
+      slug,
+      params.payload,
+      params.handlers,
+      params.config,
+    );
     return;
   }
 
@@ -173,12 +178,36 @@ async function handlePullRequestReviewEvent(
     return;
   }
 
-  const review = payload.review as { state?: string; body?: string } | undefined;
-  const body = review?.body?.trim() ?? "";
-  const approved = review?.state === "APPROVED" && body.length === 0;
-  const comments = approved ? [] : [body || review?.state || "reviewed"];
+  const review = readReviewPayload(payload);
+  const approved = isSilentApproval(review);
+  const comments = approved ? [] : buildReviewComments(review);
   const agentName = extractAgentFromBranch(pr.head?.ref ?? "");
   await recordPrReviewResult(slug, agentName, approved, comments);
+}
+
+interface PullRequestReviewPayload {
+  state: string;
+  body: string;
+}
+
+function readReviewPayload(
+  payload: Record<string, unknown>,
+): PullRequestReviewPayload {
+  const review = payload.review as
+    | { state?: string; body?: string }
+    | undefined;
+  return {
+    state: review?.state ?? "",
+    body: review?.body?.trim() ?? "",
+  };
+}
+
+function isSilentApproval(review: PullRequestReviewPayload): boolean {
+  return review.state === "APPROVED" && review.body.length === 0;
+}
+
+function buildReviewComments(review: PullRequestReviewPayload): string[] {
+  return [review.body || review.state || "reviewed"];
 }
 
 type WebhookPullRequest = {
