@@ -199,7 +199,7 @@ ${renderList(growthDirectoryLines)}
 ### [WD-M3-001] High-churn files (> ${config.thresholds.highChurnEdits} edits in 7d)
 ${renderList(churnLines)}
 
-### [WD-M3-002] Correlated churn groups
+### Correlated churn groups (informational)
 ${renderList(correlatedChurnLines)}
 `;
 }
