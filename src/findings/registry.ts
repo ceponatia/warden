@@ -127,6 +127,30 @@ export const FINDING_CODE_REGISTRY: FindingCodeDef[] = [
     shortDescription: "Module never loaded at runtime",
     wikiPath: "wiki/WD-M9-003.md",
   },
+  {
+    code: "WD-M7-001",
+    metric: "M7",
+    shortDescription: "Pull request open beyond stale threshold",
+    wikiPath: "wiki/WD-M7-001.md",
+  },
+  {
+    code: "WD-M7-002",
+    metric: "M7",
+    shortDescription: "Open PR backlog exceeds threshold",
+    wikiPath: "wiki/WD-M7-002.md",
+  },
+  {
+    code: "WD-M7-003",
+    metric: "M7",
+    shortDescription: "CI failure rate exceeds threshold",
+    wikiPath: "wiki/WD-M7-003.md",
+  },
+  {
+    code: "WD-M7-004",
+    metric: "M7",
+    shortDescription: "Stale branch accumulation",
+    wikiPath: "wiki/WD-M7-004.md",
+  },
 ];
 
 const FINDING_CODE_MAP = new Map(

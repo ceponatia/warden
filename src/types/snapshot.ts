@@ -10,6 +10,10 @@ export interface RepoThresholds {
   largeFileGrowthLines: number;
   lowRouteHitCount: number;
   newFileClusterCount: number;
+  stalePrDays: number;
+  maxOpenPrs: number;
+  ciFailureRatePct: number;
+  staleBranchDays: number;
 }
 
 export interface RepoRetention {
@@ -30,6 +34,7 @@ export interface RepoConfig {
   retention: RepoRetention;
   commitThreshold: number;
   suppressions?: RepoSuppression[];
+  githubRepo?: string;
 }
 
 export type MetricTag =
@@ -205,6 +210,42 @@ export interface RuntimeSnapshot extends CollectorMetadata {
   coverage: RuntimeCoverageEntry[];
 }
 
+export interface GitHubPrEntry {
+  number: number;
+  title: string;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+  daysSinceUpdate: number;
+  isDraft: boolean;
+}
+
+export interface GitHubBranchEntry {
+  name: string;
+  lastCommitDate: string;
+  daysSinceCommit: number;
+  isProtected: boolean;
+}
+
+export interface GitHubCiRunEntry {
+  workflowName: string;
+  conclusion: "success" | "failure" | "cancelled" | "skipped" | string;
+  runAt: string;
+}
+
+export interface GitHubSnapshot extends CollectorMetadata {
+  summary: {
+    openPrs: number;
+    stalePrs: number;
+    staleBranches: number;
+    ciRunsAnalyzed: number;
+    ciFailureRatePct: number;
+  };
+  stalePrs: GitHubPrEntry[];
+  staleBranches: GitHubBranchEntry[];
+  recentCiRuns: GitHubCiRunEntry[];
+}
+
 export interface SnapshotBundle {
   gitStats: GitStatsSnapshot;
   staleness: StalenessSnapshot;
@@ -212,4 +253,5 @@ export interface SnapshotBundle {
   complexity?: ComplexitySnapshot;
   imports?: ImportsSnapshot;
   runtime?: RuntimeSnapshot;
+  github?: GitHubSnapshot;
 }

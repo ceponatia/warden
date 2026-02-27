@@ -280,6 +280,58 @@ function appendRuntime(
   }
 }
 
+function appendGitHub(
+  findings: FindingInstance[],
+  config: RepoConfig,
+  bundle: SnapshotBundle,
+  allowlistRules: AllowlistRule[],
+): void {
+  if (!bundle.github) {
+    return;
+  }
+
+  const { maxOpenPrs, ciFailureRatePct } = config.thresholds;
+
+  if (bundle.github.summary.openPrs > maxOpenPrs) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M7-002",
+      metric: "M7",
+      summary: `Open PR backlog (${bundle.github.summary.openPrs} open PRs, threshold ${maxOpenPrs})`,
+      path: "github:prs",
+    });
+  }
+
+  for (const pr of bundle.github.stalePrs) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M7-001",
+      metric: "M7",
+      summary: `Stale PR #${pr.number} inactive for ${pr.daysSinceUpdate} days: ${pr.title}`,
+      path: `github:pr/${pr.number}`,
+    });
+  }
+
+  for (const branch of bundle.github.staleBranches) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M7-004",
+      metric: "M7",
+      summary: `Stale branch inactive for ${branch.daysSinceCommit} days: ${branch.name}`,
+      path: `github:branch/${branch.name}`,
+    });
+  }
+
+  if (
+    bundle.github.summary.ciRunsAnalyzed > 0 &&
+    bundle.github.summary.ciFailureRatePct >= ciFailureRatePct
+  ) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M7-003",
+      metric: "M7",
+      summary: `CI failure rate ${bundle.github.summary.ciFailureRatePct}% exceeds threshold ${ciFailureRatePct}%`,
+      path: "github:ci",
+    });
+  }
+}
+
 export function evaluateFindings(
   config: RepoConfig,
   bundle: SnapshotBundle,
@@ -293,6 +345,7 @@ export function evaluateFindings(
   appendComplexity(findings, config, bundle, allowlistRules);
   appendImports(findings, config, bundle, allowlistRules);
   appendRuntime(findings, config, bundle, allowlistRules);
+  appendGitHub(findings, config, bundle, allowlistRules);
 
   return findings;
 }

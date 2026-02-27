@@ -15,6 +15,10 @@ export const DEFAULT_THRESHOLDS: RepoThresholds = {
   largeFileGrowthLines: 300,
   lowRouteHitCount: 2,
   newFileClusterCount: 6,
+  stalePrDays: 14,
+  maxOpenPrs: 20,
+  ciFailureRatePct: 30,
+  staleBranchDays: 30,
 };
 
 export const DEFAULT_RETENTION: RepoRetention = {
@@ -87,6 +91,22 @@ function normalizeThresholds(
       source.newFileClusterCount,
       DEFAULT_THRESHOLDS.newFileClusterCount,
     ),
+    stalePrDays: resolvePositiveNumber(
+      source.stalePrDays,
+      DEFAULT_THRESHOLDS.stalePrDays,
+    ),
+    maxOpenPrs: resolvePositiveNumber(
+      source.maxOpenPrs,
+      DEFAULT_THRESHOLDS.maxOpenPrs,
+    ),
+    ciFailureRatePct: resolvePositiveNumber(
+      source.ciFailureRatePct,
+      DEFAULT_THRESHOLDS.ciFailureRatePct,
+    ),
+    staleBranchDays: resolvePositiveNumber(
+      source.staleBranchDays,
+      DEFAULT_THRESHOLDS.staleBranchDays,
+    ),
   };
 }
 
@@ -153,5 +173,7 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
     retention,
     commitThreshold,
     suppressions: normalizeSuppressions(raw.suppressions),
+    githubRepo:
+      typeof raw.githubRepo === "string" ? raw.githubRepo : undefined,
   };
 }

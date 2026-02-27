@@ -94,6 +94,12 @@ Use cron/systemd/launchd examples in `docs/scheduling.md` to run Warden automati
 
 Threshold defaults and semantics are documented in `docs/thresholds.md`.
 
+## GitHub integration (Phase 9)
+
+Set `githubRepo: "owner/repo"` in `config/repos.json` and provide `GITHUB_TOKEN` (read-only scopes) to enable M7 GitHub metrics — stale PRs, PR backlog, CI failure rate, and stale branch detection.
+
+See `docs/ph09-github-integration.md` for the full implementation plan.
+
 ## Scope config
 
 `warden init` generates `config/<slug>.scope` as a `.gitignore`-style file-scoping config.
