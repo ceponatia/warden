@@ -176,7 +176,11 @@ function toCoverageEntriesFromV8(repoPath: string, parsed: V8CoverageFile): Cove
   const byPath = new Map<string, CoverageFileEntry>();
 
   for (const script of parsed.result ?? []) {
-    if (!script.url || !script.url.includes(path.sep) || script.url.includes("node_modules")) {
+    if (
+      !script.url ||
+      (!script.url.startsWith("file://") && !script.url.includes("/")) ||
+      script.url.includes("node_modules")
+    ) {
       continue;
     }
 
