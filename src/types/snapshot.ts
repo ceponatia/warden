@@ -2,7 +2,10 @@ import type { RepoSuppression } from "./findings.js";
 
 export interface RepoThresholds {
   staleDays: number;
+  docStaleDays: number;
   highChurnEdits: number;
+  correlatedChurnRate: number;
+  correlatedChurnMinCommits: number;
   growthMultiplier: number;
   directoryGrowthPct: number;
   highRewriteRatio: number;
@@ -10,6 +13,8 @@ export interface RepoThresholds {
   largeFileGrowthLines: number;
   lowRouteHitCount: number;
   newFileClusterCount: number;
+  lowCoveragePct: number;
+  coverageRegressionPct: number;
 }
 
 export interface RepoRetention {
@@ -60,7 +65,9 @@ export type MetricTag =
   | "imports"
   | "debt"
   | "complexity"
-  | "runtime";
+  | "runtime"
+  | "coverage"
+  | "doc-staleness";
 
 export interface ScopeRule {
   pattern: string;
@@ -107,6 +114,13 @@ export interface WindowStats {
   files: FileGrowthEntry[];
   directories: DirGrowthEntry[];
   highChurnFiles: ChurnEntry[];
+  correlatedChurnGroups: CorrelatedChurnGroup[];
+}
+
+export interface CorrelatedChurnGroup {
+  files: string[];
+  coCommitRate: number;
+  totalCommits: number;
 }
 
 export interface GitStatsSnapshot extends CollectorMetadata {
@@ -225,6 +239,62 @@ export interface RuntimeSnapshot extends CollectorMetadata {
   coverage: RuntimeCoverageEntry[];
 }
 
+export interface CoverageFileEntry {
+  path: string;
+  lineCoverage: number;
+  functionCoverage: number;
+  branchCoverage: number;
+  uncoveredFunctions: string[];
+  isHighChurn: boolean;
+  churnEdits?: number;
+  lineCoverageDelta?: number;
+}
+
+export interface CoverageSnapshot extends CollectorMetadata {
+  summary: {
+    totalFiles: number;
+    coveredFiles: number;
+    averageCoverage: number;
+    filesBelow50: number;
+    filesBelow80: number;
+  };
+  files: CoverageFileEntry[];
+}
+
+export interface StaleDocEntry {
+  docPath: string;
+  lastDocCommit: string;
+  daysSinceDocUpdate: number;
+  describedPaths: string[];
+  codeChangesSince: number;
+  latestCodeCommit: string;
+}
+
+export interface OrphanedRefEntry {
+  docPath: string;
+  line: number;
+  reference: string;
+  referenceType: "file" | "function" | "api";
+}
+
+export interface UndocumentedApiEntry {
+  path: string;
+  exportName: string;
+  exportType: "function" | "class" | "type" | "interface";
+}
+
+export interface DocStalenessSnapshot extends CollectorMetadata {
+  summary: {
+    totalDocFiles: number;
+    staleDocFiles: number;
+    orphanedRefs: number;
+    undocumentedApis: number;
+  };
+  staleDocFiles: StaleDocEntry[];
+  orphanedRefs: OrphanedRefEntry[];
+  undocumentedApis: UndocumentedApiEntry[];
+}
+
 export interface SnapshotBundle {
   gitStats: GitStatsSnapshot;
   staleness: StalenessSnapshot;
@@ -232,4 +302,6 @@ export interface SnapshotBundle {
   complexity?: ComplexitySnapshot;
   imports?: ImportsSnapshot;
   runtime?: RuntimeSnapshot;
+  coverage?: CoverageSnapshot;
+  docStaleness?: DocStalenessSnapshot;
 }

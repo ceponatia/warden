@@ -95,6 +95,48 @@ function appendImportAndRuntimeLines(
   }
 }
 
+function appendCoverageAndDocs(lines: string[], bundle: SnapshotBundle): void {
+  if (bundle.coverage) {
+    const topLowCoverage = bundle.coverage.files
+      .filter((entry) => entry.lineCoverage < 50)
+      .slice(0, 5)
+      .map((entry) => `${entry.path} (${entry.lineCoverage}%)`)
+      .join(", ");
+    const highChurnUncovered = bundle.coverage.files
+      .filter((entry) => entry.isHighChurn && entry.lineCoverage < 50)
+      .slice(0, 5)
+      .map((entry) => `${entry.path} (${entry.churnEdits ?? 0} edits, ${entry.lineCoverage}%)`)
+      .join(", ");
+
+    lines.push(
+      "",
+      "## Coverage Gaps",
+      `Coverage files: ${bundle.coverage.summary.totalFiles}`,
+      `Average line coverage: ${bundle.coverage.summary.averageCoverage}%`,
+      `Files below 50%: ${bundle.coverage.summary.filesBelow50}`,
+      `Top low coverage: ${topLowCoverage || "none"}`,
+      `High-churn uncovered intersections: ${highChurnUncovered || "none"}`,
+    );
+  }
+
+  if (bundle.docStaleness) {
+    const staleDocs = bundle.docStaleness.staleDocFiles
+      .slice(0, 5)
+      .map((entry) => `${entry.docPath} (${entry.codeChangesSince} code changes since doc update)`)
+      .join(", ");
+
+    lines.push(
+      "",
+      "## Documentation Staleness",
+      `Doc files scanned: ${bundle.docStaleness.summary.totalDocFiles}`,
+      `Stale docs: ${bundle.docStaleness.summary.staleDocFiles}`,
+      `Orphaned refs: ${bundle.docStaleness.summary.orphanedRefs}`,
+      `Undocumented APIs: ${bundle.docStaleness.summary.undocumentedApis}`,
+      `Top stale docs: ${staleDocs || "none"}`,
+    );
+  }
+}
+
 function appendDeltaLines(
   lines: string[],
   delta?: SnapshotDelta,
@@ -134,6 +176,7 @@ export function assemblePrompt(
     `30d: ${w30.totalFilesChanged} files changed, +${w30.totalLinesAdded}/-${w30.totalLinesRemoved} lines`,
     `90d: ${w90.totalFilesChanged} files changed, +${w90.totalLinesAdded}/-${w90.totalLinesRemoved} lines`,
     `High-churn files (7d): ${w7.highChurnFiles.map((f) => `${f.path} (${f.editCount} edits)`).join(", ") || "none"}`,
+    `Correlated churn groups (7d): ${w7.correlatedChurnGroups.map((g) => `${g.files.join("+")} (${(g.coCommitRate * 100).toFixed(0)}%)`).join(", ") || "none"}`,
     "",
     "## Staleness",
     `Stale files: ${staleness.staleFiles.length}`,
@@ -156,6 +199,7 @@ export function assemblePrompt(
   appendActiveFindingLines(lines, activeFindings);
   appendComplexityLines(lines, bundle);
   appendImportAndRuntimeLines(lines, bundle);
+  appendCoverageAndDocs(lines, bundle);
   appendDeltaLines(lines, delta, deltaContextLabel);
 
   lines.push(

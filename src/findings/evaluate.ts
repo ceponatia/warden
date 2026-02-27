@@ -280,6 +280,85 @@ function appendRuntime(
   }
 }
 
+function appendCoverage(
+  findings: FindingInstance[],
+  config: RepoConfig,
+  bundle: SnapshotBundle,
+  allowlistRules: AllowlistRule[],
+): void {
+  if (!bundle.coverage) {
+    return;
+  }
+
+  for (const coverage of bundle.coverage.files) {
+    if (!coverage.isHighChurn && coverage.lineCoverage < config.thresholds.lowCoveragePct) {
+      addFinding(findings, config, allowlistRules, {
+        code: "WD-M7-001",
+        metric: "M7",
+        summary: `Low file coverage (${coverage.lineCoverage}%): ${coverage.path}`,
+        path: coverage.path,
+      });
+    }
+
+    if (coverage.isHighChurn && coverage.lineCoverage < config.thresholds.lowCoveragePct) {
+      addFinding(findings, config, allowlistRules, {
+        code: "WD-M7-002",
+        metric: "M7",
+        summary: `High-churn file undercovered (${coverage.churnEdits ?? 0} edits, ${coverage.lineCoverage}%): ${coverage.path}`,
+        path: coverage.path,
+      });
+    }
+
+    if ((coverage.lineCoverageDelta ?? 0) <= -config.thresholds.coverageRegressionPct) {
+      addFinding(findings, config, allowlistRules, {
+        code: "WD-M7-003",
+        metric: "M7",
+        summary: `Coverage regression (${coverage.lineCoverageDelta}%): ${coverage.path}`,
+        path: coverage.path,
+      });
+    }
+  }
+}
+
+function appendDocStaleness(
+  findings: FindingInstance[],
+  config: RepoConfig,
+  bundle: SnapshotBundle,
+  allowlistRules: AllowlistRule[],
+): void {
+  if (!bundle.docStaleness) {
+    return;
+  }
+
+  for (const entry of bundle.docStaleness.staleDocFiles) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M8-001",
+      metric: "M8",
+      summary: `Stale documentation (${entry.daysSinceDocUpdate}d, ${entry.codeChangesSince} code changes): ${entry.docPath}`,
+      path: entry.docPath,
+    });
+  }
+
+  for (const entry of bundle.docStaleness.orphanedRefs) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M8-002",
+      metric: "M8",
+      summary: `Orphaned ${entry.referenceType} reference at ${entry.docPath}:${entry.line}: ${entry.reference}`,
+      path: entry.docPath,
+    });
+  }
+
+  for (const entry of bundle.docStaleness.undocumentedApis) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M8-003",
+      metric: "M8",
+      summary: `Undocumented public ${entry.exportType}: ${entry.exportName} (${entry.path})`,
+      path: entry.path,
+      symbol: entry.exportName,
+    });
+  }
+}
+
 export function evaluateFindings(
   config: RepoConfig,
   bundle: SnapshotBundle,
@@ -293,6 +372,8 @@ export function evaluateFindings(
   appendComplexity(findings, config, bundle, allowlistRules);
   appendImports(findings, config, bundle, allowlistRules);
   appendRuntime(findings, config, bundle, allowlistRules);
+  appendCoverage(findings, config, bundle, allowlistRules);
+  appendDocStaleness(findings, config, bundle, allowlistRules);
 
   return findings;
 }
