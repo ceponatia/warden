@@ -12,7 +12,7 @@ import {
   DEFAULT_RETENTION,
   DEFAULT_THRESHOLDS,
 } from "../../config/schema.js";
-import { readGitIgnore, runCommand } from "../../collectors/utils.js";
+import { readGitIgnore, runCommand, runCommandSafe } from "../../collectors/utils.js";
 import { ensureGithubClone, parseGithubRepoSpec } from "../../github/repo.js";
 import type { RepoConfig } from "../../types/snapshot.js";
 
@@ -171,6 +171,16 @@ async function addGithubRepo(target: string): Promise<void> {
   const slug = toSlug(repo);
   const clonePath = await ensureGithubClone({ owner, repo, slug });
 
+  const branchResult = await runCommandSafe(
+    "git",
+    ["symbolic-ref", "refs/remotes/origin/HEAD"],
+    clonePath,
+  );
+  const defaultBranch =
+    branchResult.exitCode === 0
+      ? branchResult.stdout.trim().replace("refs/remotes/origin/", "")
+      : "main";
+
   const config = await buildRepoConfigFromPath({
     slug,
     repoPath: clonePath,
@@ -179,7 +189,7 @@ async function addGithubRepo(target: string): Promise<void> {
       owner,
       repo,
       url: `https://github.com/${owner}/${repo}`,
-      defaultBranch: "main",
+      defaultBranch,
     },
   });
 

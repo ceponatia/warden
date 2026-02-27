@@ -64,7 +64,9 @@ export async function loadTrustMetrics(
 ): Promise<TrustMetrics> {
   try {
     const raw = await readFile(trustPath(slug, agentName), "utf8");
-    return JSON.parse(raw) as TrustMetrics;
+    const parsed = JSON.parse(raw) as TrustMetrics;
+    parsed.prReviewScore ??= 1;
+    return parsed;
   } catch (error: unknown) {
     const err = error as NodeJS.ErrnoException;
     if (err && err.code === "ENOENT") {
@@ -147,7 +149,9 @@ export async function loadAllTrustMetrics(
   for (const entry of entries) {
     try {
       const raw = await readFile(path.join(dir, entry), "utf8");
-      results.push(JSON.parse(raw) as TrustMetrics);
+      const parsed = JSON.parse(raw) as TrustMetrics;
+      parsed.prReviewScore ??= 1;
+      results.push(parsed);
     } catch {
       // Skip files that cannot be read or parsed
     }
