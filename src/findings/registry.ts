@@ -110,6 +110,42 @@ export const FINDING_CODE_REGISTRY: FindingCodeDef[] = [
     wikiPath: "wiki/WD-M6-004.md",
   },
   {
+    code: "WD-M7-001",
+    metric: "M7",
+    shortDescription: "Low file coverage (below threshold)",
+    wikiPath: "wiki/WD-M7-001.md",
+  },
+  {
+    code: "WD-M7-002",
+    metric: "M7",
+    shortDescription: "Uncovered high-churn file",
+    wikiPath: "wiki/WD-M7-002.md",
+  },
+  {
+    code: "WD-M7-003",
+    metric: "M7",
+    shortDescription: "Coverage regression since previous snapshot",
+    wikiPath: "wiki/WD-M7-003.md",
+  },
+  {
+    code: "WD-M8-001",
+    metric: "M8",
+    shortDescription: "Stale documentation with code churn",
+    wikiPath: "wiki/WD-M8-001.md",
+  },
+  {
+    code: "WD-M8-002",
+    metric: "M8",
+    shortDescription: "Orphaned documentation reference",
+    wikiPath: "wiki/WD-M8-002.md",
+  },
+  {
+    code: "WD-M8-003",
+    metric: "M8",
+    shortDescription: "Undocumented public API",
+    wikiPath: "wiki/WD-M8-003.md",
+  },
+  {
     code: "WD-M9-001",
     metric: "M9",
     shortDescription: "API route received zero hits",

@@ -61,6 +61,16 @@ async function collectForRepo(config: RepoConfig): Promise<void> {
       `${JSON.stringify(results.runtime, null, 2)}\n`,
       "utf8",
     ),
+    writeFile(
+      path.join(snapshotDir, "coverage.json"),
+      `${JSON.stringify(results.coverage, null, 2)}\n`,
+      "utf8",
+    ),
+    writeFile(
+      path.join(snapshotDir, "doc-staleness.json"),
+      `${JSON.stringify(results.docStaleness, null, 2)}\n`,
+      "utf8",
+    ),
   ]);
 
   process.stdout.write(
@@ -80,6 +90,12 @@ async function collectForRepo(config: RepoConfig): Promise<void> {
   );
   process.stdout.write(
     `  runtime: ${results.runtime.summary.apiHitEvents} API hit events, ${results.runtime.summary.coverageFiles} coverage files\n`,
+  );
+  process.stdout.write(
+    `  coverage: ${results.coverage.summary.totalFiles} files, avg ${results.coverage.summary.averageCoverage}%\n`,
+  );
+  process.stdout.write(
+    `  doc-staleness: ${results.docStaleness.summary.staleDocFiles} stale docs, ${results.docStaleness.summary.orphanedRefs} orphaned refs\n`,
   );
   process.stdout.write(
     `Snapshot written to data/${config.slug}/snapshots/${snapshotTimestamp}/\n`,

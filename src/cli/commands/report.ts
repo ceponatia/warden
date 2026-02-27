@@ -75,6 +75,8 @@ async function renderReportForRepo(
     snapshot.complexity ?? null,
     snapshot.imports ?? null,
     snapshot.runtime ?? null,
+    snapshot.coverage ?? null,
+    snapshot.docStaleness ?? null,
   );
 
   let report = `${baseReport}${renderFindingSummarySection(summaryLines)}`;

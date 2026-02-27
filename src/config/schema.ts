@@ -8,7 +8,10 @@ import type { RepoSuppression } from "../types/findings.js";
 
 export const DEFAULT_THRESHOLDS: RepoThresholds = {
   staleDays: 10,
+  docStaleDays: 30,
   highChurnEdits: 5,
+  correlatedChurnRate: 0.8,
+  correlatedChurnMinCommits: 3,
   growthMultiplier: 2,
   directoryGrowthPct: 20,
   highRewriteRatio: 3,
@@ -16,6 +19,8 @@ export const DEFAULT_THRESHOLDS: RepoThresholds = {
   largeFileGrowthLines: 300,
   lowRouteHitCount: 2,
   newFileClusterCount: 6,
+  lowCoveragePct: 50,
+  coverageRegressionPct: 10,
 };
 
 export const DEFAULT_RETENTION: RepoRetention = {
@@ -56,9 +61,21 @@ function normalizeThresholds(
       source.staleDays,
       DEFAULT_THRESHOLDS.staleDays,
     ),
+    docStaleDays: resolvePositiveNumber(
+      source.docStaleDays,
+      DEFAULT_THRESHOLDS.docStaleDays,
+    ),
     highChurnEdits: resolvePositiveNumber(
       source.highChurnEdits,
       DEFAULT_THRESHOLDS.highChurnEdits,
+    ),
+    correlatedChurnRate: resolvePositiveNumber(
+      source.correlatedChurnRate,
+      DEFAULT_THRESHOLDS.correlatedChurnRate,
+    ),
+    correlatedChurnMinCommits: resolvePositiveNumber(
+      source.correlatedChurnMinCommits,
+      DEFAULT_THRESHOLDS.correlatedChurnMinCommits,
     ),
     growthMultiplier: resolvePositiveNumber(
       source.growthMultiplier,
@@ -87,6 +104,14 @@ function normalizeThresholds(
     newFileClusterCount: resolvePositiveNumber(
       source.newFileClusterCount,
       DEFAULT_THRESHOLDS.newFileClusterCount,
+    ),
+    lowCoveragePct: resolvePositiveNumber(
+      source.lowCoveragePct,
+      DEFAULT_THRESHOLDS.lowCoveragePct,
+    ),
+    coverageRegressionPct: resolvePositiveNumber(
+      source.coverageRegressionPct,
+      DEFAULT_THRESHOLDS.coverageRegressionPct,
     ),
   };
 }

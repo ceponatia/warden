@@ -2,8 +2,10 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type {
+  CoverageSnapshot,
   ComplexitySnapshot,
   DebtMarkersSnapshot,
+  DocStalenessSnapshot,
   GitStatsSnapshot,
   ImportsSnapshot,
   RuntimeSnapshot,
@@ -45,8 +47,16 @@ export async function loadSnapshotByTimestamp(
     timestamp,
   );
 
-  const [gitStatsRaw, stalenessRaw, debtRaw, complexity, imports, runtime] =
-    await Promise.all([
+  const [
+    gitStatsRaw,
+    stalenessRaw,
+    debtRaw,
+    complexity,
+    imports,
+    runtime,
+    coverage,
+    docStaleness,
+  ] = await Promise.all([
       readFile(path.join(snapshotDir, "git-stats.json"), "utf8"),
       readFile(path.join(snapshotDir, "staleness.json"), "utf8"),
       readFile(path.join(snapshotDir, "debt-markers.json"), "utf8"),
@@ -59,6 +69,12 @@ export async function loadSnapshotByTimestamp(
       readJsonIfPresent<RuntimeSnapshot>(
         path.join(snapshotDir, "runtime.json"),
       ),
+      readJsonIfPresent<CoverageSnapshot>(
+        path.join(snapshotDir, "coverage.json"),
+      ),
+      readJsonIfPresent<DocStalenessSnapshot>(
+        path.join(snapshotDir, "doc-staleness.json"),
+      ),
     ]);
 
   return {
@@ -69,6 +85,8 @@ export async function loadSnapshotByTimestamp(
     complexity: complexity ?? undefined,
     imports: imports ?? undefined,
     runtime: runtime ?? undefined,
+    coverage: coverage ?? undefined,
+    docStaleness: docStaleness ?? undefined,
   };
 }
 

@@ -1,6 +1,8 @@
 import type {
+  CoverageSnapshot,
   ComplexitySnapshot,
   DebtMarkersSnapshot,
+  DocStalenessSnapshot,
   GitStatsSnapshot,
   ImportsSnapshot,
   RepoConfig,
@@ -119,56 +121,72 @@ function toRuntimeCoverageLines(runtime: RuntimeSnapshot | null): string[] {
     );
 }
 
-export function renderTemplateReport(
+function toCorrelatedChurnLines(gitStats: GitStatsSnapshot): string[] {
+  return gitStats.windows["7d"].correlatedChurnGroups
+    .slice(0, 10)
+    .map(
+      (group) =>
+        `${group.files.join(", ")}: ${(group.coCommitRate * 100).toFixed(0)}% co-commit rate across ${group.totalCommits} commits`,
+    );
+}
+
+function toCoverageLines(coverage: CoverageSnapshot | null): {
+  lowCoverage: string[];
+  highChurnUncovered: string[];
+  regressions: string[];
+} {
+  const files = coverage?.files ?? [];
+  return {
+    lowCoverage: files
+      .filter((entry) => entry.lineCoverage < 50)
+      .slice(0, 15)
+      .map((entry) => `${entry.path}: ${entry.lineCoverage}% line coverage`),
+    highChurnUncovered: files
+      .filter((entry) => entry.isHighChurn && entry.lineCoverage < 50)
+      .slice(0, 15)
+      .map(
+        (entry) =>
+          `${entry.path}: ${entry.lineCoverage}% coverage, ${entry.churnEdits ?? 0} edits in 7d`,
+      ),
+    regressions: files
+      .filter((entry) => (entry.lineCoverageDelta ?? 0) < -10)
+      .slice(0, 15)
+      .map(
+        (entry) =>
+          `${entry.path}: ${(entry.lineCoverageDelta ?? 0).toFixed(2)} point drop`,
+      ),
+  };
+}
+
+function toDocStalenessLines(docStaleness: DocStalenessSnapshot | null): {
+  staleDocs: string[];
+  orphanedRefs: string[];
+  undocumentedApis: string[];
+} {
+  return {
+    staleDocs: (docStaleness?.staleDocFiles ?? [])
+      .slice(0, 15)
+      .map(
+        (entry) =>
+          `${entry.docPath}: ${entry.daysSinceDocUpdate}d old, ${entry.codeChangesSince} code changes since update`,
+      ),
+    orphanedRefs: (docStaleness?.orphanedRefs ?? [])
+      .slice(0, 15)
+      .map((entry) => `${entry.docPath}:${entry.line} -> ${entry.reference}`),
+    undocumentedApis: (docStaleness?.undocumentedApis ?? [])
+      .slice(0, 15)
+      .map((entry) => `${entry.path}: ${entry.exportType} ${entry.exportName}`),
+  };
+}
+
+function renderGrowthAndChurnSection(
   config: RepoConfig,
-  gitStats: GitStatsSnapshot,
-  staleness: StalenessSnapshot,
-  debtMarkers: DebtMarkersSnapshot,
-  complexity: ComplexitySnapshot | null,
-  imports: ImportsSnapshot | null,
-  runtime: RuntimeSnapshot | null,
+  growthFileLines: string[],
+  growthDirectoryLines: string[],
+  churnLines: string[],
+  correlatedChurnLines: string[],
 ): string {
-  const window7d = gitStats.windows["7d"];
-  const stalenessLines = buildStalenessLines(staleness);
-  const supplementalLines = buildSupplementalLines(
-    complexity,
-    imports,
-    runtime,
-  );
-
-  const growthFileLines = window7d.files
-    .slice(0, 15)
-    .map(
-      (entry) =>
-        `${entry.path}: +${entry.linesAdded} lines (${entry.growthRatio}x average) [7d window]`,
-    );
-  const growthDirectoryLines = window7d.directories
-    .slice(0, 15)
-    .map(
-      (entry) =>
-        `${entry.path}: +${entry.totalLinesAdded} lines (${entry.growthPct}% growth, ${entry.newFiles} new files) [7d window]`,
-    );
-  const churnLines = window7d.highChurnFiles
-    .slice(0, 15)
-    .map(
-      (entry) =>
-        `${entry.path}: ${entry.editCount} edits, ${entry.addDeleteRatio} add/delete ratio`,
-    );
-
-  const topDebtFiles = debtMarkers.files.slice(0, 15).map((entry) => {
-    const markerCount =
-      entry.todos.length +
-      entry.fixmes.length +
-      entry.hacks.length +
-      entry.eslintDisables.length +
-      entry.anyCasts;
-    return `${entry.path}: ${markerCount} markers (${entry.todos.length} TODO, ${entry.eslintDisables.length} eslint-disable)`;
-  });
-
-  return `# Warden Report -- ${new Date().toISOString()}
-# Repo: ${config.slug} | Branch: ${gitStats.branch}
-
-## Growth (M1)
+  return `## Growth (M1)
 
 ### [WD-M1-001] Flagged files (growing > ${config.thresholds.growthMultiplier}x repo average)
 ${renderList(growthFileLines)}
@@ -181,7 +199,47 @@ ${renderList(growthDirectoryLines)}
 ### [WD-M3-001] High-churn files (> ${config.thresholds.highChurnEdits} edits in 7d)
 ${renderList(churnLines)}
 
-## Staleness (M2)
+### [WD-M3-002] Correlated churn groups
+${renderList(correlatedChurnLines)}
+`;
+}
+
+function renderCoverageAndDocsSection(
+  config: RepoConfig,
+  coverageLines: ReturnType<typeof toCoverageLines>,
+  docStalenessLines: ReturnType<typeof toDocStalenessLines>,
+): string {
+  return `## Coverage gaps (M7)
+
+### [WD-M7-001] Low file coverage (< ${config.thresholds.lowCoveragePct}%)
+${renderList(coverageLines.lowCoverage)}
+
+### [WD-M7-002] Uncovered high-churn files
+${renderList(coverageLines.highChurnUncovered)}
+
+### [WD-M7-003] Coverage regressions
+${renderList(coverageLines.regressions)}
+
+## Documentation staleness (M8)
+
+### [WD-M8-001] Stale docs with code churn
+${renderList(docStalenessLines.staleDocs)}
+
+### [WD-M8-002] Orphaned references
+${renderList(docStalenessLines.orphanedRefs)}
+
+### [WD-M8-003] Undocumented public APIs
+${renderList(docStalenessLines.undocumentedApis)}
+`;
+}
+
+function renderStalenessDebtImportRuntimeSection(
+  debtMarkers: DebtMarkersSnapshot,
+  stalenessLines: ReturnType<typeof buildStalenessLines>,
+  topDebtFiles: string[],
+  supplementalLines: ReturnType<typeof buildSupplementalLines>,
+): string {
+  return `## Staleness (M2)
 
 ### [WD-M2-001] Stale + imported (possibly underutilized)
 ${renderList(stalenessLines.imported)}
@@ -223,7 +281,80 @@ ${renderList(supplementalLines.runtimeRoutes)}
 
 ### [WD-M9-003] Coverage summary
 ${renderList(supplementalLines.runtimeCoverage)}
+`;
+}
+
+export function renderTemplateReport(
+  config: RepoConfig,
+  gitStats: GitStatsSnapshot,
+  staleness: StalenessSnapshot,
+  debtMarkers: DebtMarkersSnapshot,
+  complexity: ComplexitySnapshot | null,
+  imports: ImportsSnapshot | null,
+  runtime: RuntimeSnapshot | null,
+  coverage: CoverageSnapshot | null,
+  docStaleness: DocStalenessSnapshot | null,
+): string {
+  const window7d = gitStats.windows["7d"];
+  const stalenessLines = buildStalenessLines(staleness);
+  const supplementalLines = buildSupplementalLines(
+    complexity,
+    imports,
+    runtime,
+  );
+  const correlatedChurnLines = toCorrelatedChurnLines(gitStats);
+  const coverageLines = toCoverageLines(coverage);
+  const docStalenessLines = toDocStalenessLines(docStaleness);
+
+  const growthFileLines = window7d.files
+    .slice(0, 15)
+    .map(
+      (entry) =>
+        `${entry.path}: +${entry.linesAdded} lines (${entry.growthRatio}x average) [7d window]`,
+    );
+  const growthDirectoryLines = window7d.directories
+    .slice(0, 15)
+    .map(
+      (entry) =>
+        `${entry.path}: +${entry.totalLinesAdded} lines (${entry.growthPct}% growth, ${entry.newFiles} new files) [7d window]`,
+    );
+  const churnLines = window7d.highChurnFiles
+    .slice(0, 15)
+    .map(
+      (entry) =>
+        `${entry.path}: ${entry.editCount} edits, ${entry.addDeleteRatio} add/delete ratio`,
+    );
+
+  const topDebtFiles = debtMarkers.files.slice(0, 15).map((entry) => {
+    const markerCount =
+      entry.todos.length +
+      entry.fixmes.length +
+      entry.hacks.length +
+      entry.eslintDisables.length +
+      entry.anyCasts;
+    return `${entry.path}: ${markerCount} markers (${entry.todos.length} TODO, ${entry.eslintDisables.length} eslint-disable)`;
+  });
+
+  return `# Warden Report -- ${new Date().toISOString()}
+# Repo: ${config.slug} | Branch: ${gitStats.branch}
+
+${renderGrowthAndChurnSection(
+  config,
+  growthFileLines,
+  growthDirectoryLines,
+  churnLines,
+  correlatedChurnLines,
+)}
+
+${renderStalenessDebtImportRuntimeSection(
+  debtMarkers,
+  stalenessLines,
+  topDebtFiles,
+  supplementalLines,
+)}
+
+${renderCoverageAndDocsSection(config, coverageLines, docStalenessLines)}
 
 ---
-Collected at ${gitStats.collectedAt} | Thresholds: stale=${config.thresholds.staleDays}d, churn=${config.thresholds.highChurnEdits}, growth=${config.thresholds.growthMultiplier}x`;
+Collected at ${gitStats.collectedAt} | Thresholds: stale=${config.thresholds.staleDays}d, doc-stale=${config.thresholds.docStaleDays}d, churn=${config.thresholds.highChurnEdits}, growth=${config.thresholds.growthMultiplier}x, coverage=${config.thresholds.lowCoveragePct}%`;
 }

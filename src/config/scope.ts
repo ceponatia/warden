@@ -8,7 +8,7 @@ import type {
   ScopeRule,
 } from "../types/snapshot.js";
 
-const METRIC_TAGS: MetricTag[] = [
+export const METRIC_TAGS: MetricTag[] = [
   "size",
   "staleness",
   "growth",
@@ -17,6 +17,8 @@ const METRIC_TAGS: MetricTag[] = [
   "debt",
   "complexity",
   "runtime",
+  "coverage",
+  "doc-staleness",
 ];
 
 const ALL_METRICS_SET = new Set<MetricTag>(METRIC_TAGS);
@@ -203,6 +205,19 @@ components.json
 next.config.*
 postcss.config.*
 next-env.d.ts
+
+# Coverage analysis targets
+[metrics: coverage]
+src/**
+apps/**
+packages/**
+
+# Documentation freshness targets
+[metrics: doc-staleness]
+AGENTS.md
+README.md
+docs/**
+**/*.md
 `;
 }
 

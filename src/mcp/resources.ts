@@ -41,6 +41,8 @@ async function readLatestSnapshot(slug: string): Promise<string> {
     "complexity.json",
     "imports.json",
     "runtime.json",
+    "coverage.json",
+    "doc-staleness.json",
   ];
 
   const out: Record<string, unknown> = { timestamp: latest };

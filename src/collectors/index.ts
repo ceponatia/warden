@@ -1,6 +1,8 @@
 import type {
+  CoverageSnapshot,
   ComplexitySnapshot,
   DebtMarkersSnapshot,
+  DocStalenessSnapshot,
   GitStatsSnapshot,
   ImportsSnapshot,
   RepoConfig,
@@ -8,8 +10,10 @@ import type {
   StalenessSnapshot,
 } from "../types/snapshot.js";
 import { loadScopeRules } from "../config/scope.js";
+import { collectCoverage } from "./collect-coverage.js";
 import { collectComplexity } from "./collect-complexity.js";
 import { collectDebtMarkers } from "./collect-debt-markers.js";
+import { collectDocStaleness } from "./collect-doc-staleness.js";
 import { collectGitStats } from "./collect-git-stats.js";
 import { collectImports } from "./collect-imports.js";
 import { collectRuntime } from "./collect-runtime.js";
@@ -22,21 +26,32 @@ export interface CollectorResults {
   complexity: ComplexitySnapshot;
   imports: ImportsSnapshot;
   runtime: RuntimeSnapshot;
+  coverage: CoverageSnapshot;
+  docStaleness: DocStalenessSnapshot;
 }
 
 export async function runCollectors(
   config: RepoConfig,
 ): Promise<CollectorResults> {
   const scopeRules = await loadScopeRules(config);
-  const [gitStats, staleness, debtMarkers, complexity, imports, runtime] =
-    await Promise.all([
-      collectGitStats(config, scopeRules),
-      collectStaleness(config, scopeRules),
-      collectDebtMarkers(config, scopeRules),
-      collectComplexity(config, scopeRules),
-      collectImports(config, scopeRules),
-      collectRuntime(config, scopeRules),
-    ]);
+  const gitStats = await collectGitStats(config, scopeRules);
+  const [
+    staleness,
+    debtMarkers,
+    complexity,
+    imports,
+    runtime,
+    coverage,
+    docStaleness,
+  ] = await Promise.all([
+    collectStaleness(config, scopeRules),
+    collectDebtMarkers(config, scopeRules),
+    collectComplexity(config, scopeRules),
+    collectImports(config, scopeRules),
+    collectRuntime(config, scopeRules),
+    collectCoverage(config, scopeRules, gitStats),
+    collectDocStaleness(config, scopeRules),
+  ]);
 
   return {
     gitStats,
@@ -45,6 +60,8 @@ export async function runCollectors(
     complexity,
     imports,
     runtime,
+    coverage,
+    docStaleness,
   };
 }
 
