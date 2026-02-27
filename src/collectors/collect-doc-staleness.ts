@@ -10,7 +10,12 @@ import type {
   StaleDocEntry,
   UndocumentedApiEntry,
 } from "../types/snapshot.js";
-import { daysBetween, normalizePath, runCommand, runCommandSafe } from "./utils.js";
+import {
+  daysBetween,
+  normalizePath,
+  runCommand,
+  runCommandSafe,
+} from "./utils.js";
 
 const SOURCE_FILE_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 // Maximum source paths per doc evaluated for staleness; limits git command length
@@ -39,7 +44,11 @@ interface ExportDecl {
 
 function isDocFile(filePath: string): boolean {
   const base = path.basename(filePath);
-  return filePath.endsWith(".md") || DOC_HINT_FILES.has(base) || filePath.startsWith("docs/");
+  return (
+    filePath.endsWith(".md") ||
+    DOC_HINT_FILES.has(base) ||
+    filePath.startsWith("docs/")
+  );
 }
 
 function escapeRegex(str: string): string {
@@ -74,7 +83,11 @@ function parseReferences(markdown: string): DocReference[] {
       }
 
       if (/\.(ts|tsx|js|jsx|md|json)$/.test(ref) || ref.includes("/")) {
-        refs.push({ line: lineNo, reference: ref.replace(/^\.\//, ""), referenceType: "file" });
+        refs.push({
+          line: lineNo,
+          reference: ref.replace(/^\.\//, ""),
+          referenceType: "file",
+        });
         continue;
       }
 
@@ -98,10 +111,19 @@ function extractExports(sourcePath: string, content: string): ExportDecl[] {
     regex: RegExp;
     exportType: ExportDecl["exportType"];
   }> = [
-    { regex: /export\s+function\s+([A-Za-z_][A-Za-z0-9_]*)/g, exportType: "function" },
-    { regex: /export\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/g, exportType: "class" },
+    {
+      regex: /export\s+function\s+([A-Za-z_][A-Za-z0-9_]*)/g,
+      exportType: "function",
+    },
+    {
+      regex: /export\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/g,
+      exportType: "class",
+    },
     { regex: /export\s+type\s+([A-Za-z_][A-Za-z0-9_]*)/g, exportType: "type" },
-    { regex: /export\s+interface\s+([A-Za-z_][A-Za-z0-9_]*)/g, exportType: "interface" },
+    {
+      regex: /export\s+interface\s+([A-Za-z_][A-Za-z0-9_]*)/g,
+      exportType: "interface",
+    },
   ];
 
   for (const pattern of patterns) {
@@ -111,7 +133,11 @@ function extractExports(sourcePath: string, content: string): ExportDecl[] {
         continue;
       }
 
-      out.push({ path: sourcePath, exportName, exportType: pattern.exportType });
+      out.push({
+        path: sourcePath,
+        exportName,
+        exportType: pattern.exportType,
+      });
     }
   }
 
@@ -144,7 +170,9 @@ function sourceFiles(files: string[]): string[] {
 
 function describedByReadme(docPath: string, sources: string[]): string[] {
   const dir = normalizePath(path.dirname(docPath));
-  return sources.filter((source) => source === dir || source.startsWith(`${dir}/`));
+  return sources.filter(
+    (source) => source === dir || source.startsWith(`${dir}/`),
+  );
 }
 
 function resolveRefPath(docPath: string, reference: string): string {
@@ -201,7 +229,14 @@ async function codeChangesSince(
 
   const output = await runCommandSafe(
     "git",
-    ["rev-list", "--count", `--since=${sinceIso}`, "HEAD", "--", ...describedPaths],
+    [
+      "rev-list",
+      "--count",
+      `--since=${sinceIso}`,
+      "HEAD",
+      "--",
+      ...describedPaths,
+    ],
     repoPath,
   );
   if (output.exitCode !== 0) {
@@ -241,8 +276,15 @@ async function buildStaleDocEntry(
     return null;
   }
 
-  const changes = await codeChangesSince(config.path, lastDocCommit, describedPaths);
-  const latestCodeCommit = await latestCodeCommitSince(config.path, describedPaths);
+  const changes = await codeChangesSince(
+    config.path,
+    lastDocCommit,
+    describedPaths,
+  );
+  const latestCodeCommit = await latestCodeCommitSince(
+    config.path,
+    describedPaths,
+  );
   const daysSinceDocUpdate = daysBetween(lastDocCommit, new Date());
 
   if (changes <= 0 || daysSinceDocUpdate <= config.thresholds.docStaleDays) {
@@ -303,7 +345,11 @@ async function findOrphanedRefs(
 
 function isPublicSourceFile(filePath: string): boolean {
   const base = path.basename(filePath);
-  return base.startsWith("index.") || filePath.includes("/api/") || filePath.includes("/routes/");
+  return (
+    base.startsWith("index.") ||
+    filePath.includes("/api/") ||
+    filePath.includes("/routes/")
+  );
 }
 
 async function findUndocumentedApis(
@@ -323,7 +369,9 @@ async function findUndocumentedApis(
     const exports = extractExports(sourcePath, content);
 
     for (const exported of exports) {
-      const tokenRegex = new RegExp(`\\b${escapeRegex(exported.exportName)}\\b`);
+      const tokenRegex = new RegExp(
+        `\\b${escapeRegex(exported.exportName)}\\b`,
+      );
       if (!tokenRegex.test(docsText)) {
         undocumented.push(exported);
       }
@@ -355,7 +403,10 @@ export async function collectDocStaleness(
   let docBlobTruncated = false;
 
   for (const sourcePath of sources) {
-    const content = await readFile(path.resolve(config.path, sourcePath), "utf8");
+    const content = await readFile(
+      path.resolve(config.path, sourcePath),
+      "utf8",
+    );
     sourceBlobBytes += content.length;
     if (sourceBlobBytes > MAX_BLOB_BYTES) {
       if (!sourceBlobTruncated) {
@@ -391,7 +442,11 @@ export async function collectDocStaleness(
           ? describedByReadme(docPath, sources)
           : describedByReferences(docPath, refs, trackedSet);
 
-    const staleEntry = await buildStaleDocEntry(config, docPath, described.slice(0, MAX_DESCRIBED_PATHS));
+    const staleEntry = await buildStaleDocEntry(
+      config,
+      docPath,
+      described.slice(0, MAX_DESCRIBED_PATHS),
+    );
     if (staleEntry) {
       staleDocFiles.push(staleEntry);
     }
@@ -409,7 +464,9 @@ export async function collectDocStaleness(
     docsContent.join("\n"),
   );
 
-  staleDocFiles.sort((left, right) => right.daysSinceDocUpdate - left.daysSinceDocUpdate);
+  staleDocFiles.sort(
+    (left, right) => right.daysSinceDocUpdate - left.daysSinceDocUpdate,
+  );
 
   return {
     collectedAt: new Date().toISOString(),

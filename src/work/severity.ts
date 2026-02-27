@@ -82,7 +82,9 @@ export function computeTrend(
 
   // Only compare against the last "Report update:" note to avoid using
   // the initial severity note text as a metric value.
-  const reportNotes = doc.notes.filter((n) => n.text.startsWith("Report update:"));
+  const reportNotes = doc.notes.filter((n) =>
+    n.text.startsWith("Report update:"),
+  );
   const lastReportNote = reportNotes[reportNotes.length - 1];
   const prevNumbers = extractNumbers(lastReportNote?.text ?? "");
   const currNumbers = extractNumbers(currentFinding.summary);

@@ -143,7 +143,9 @@ function emptyEntry(pathValue: string): CoverageFileEntry {
   };
 }
 
-function buildV8ScriptStats(script: NonNullable<V8CoverageFile["result"]>[number]): V8ScriptStats {
+function buildV8ScriptStats(
+  script: NonNullable<V8CoverageFile["result"]>[number],
+): V8ScriptStats {
   const stats: V8ScriptStats = {
     totalFunctions: 0,
     coveredFunctions: 0,
@@ -172,7 +174,10 @@ function buildV8ScriptStats(script: NonNullable<V8CoverageFile["result"]>[number
   return stats;
 }
 
-function toCoverageEntriesFromV8(repoPath: string, parsed: V8CoverageFile): CoverageFileEntry[] {
+function toCoverageEntriesFromV8(
+  repoPath: string,
+  parsed: V8CoverageFile,
+): CoverageFileEntry[] {
   const byPath = new Map<string, CoverageFileEntry>();
 
   for (const script of parsed.result ?? []) {
@@ -188,8 +193,14 @@ function toCoverageEntriesFromV8(repoPath: string, parsed: V8CoverageFile): Cove
     const current = byPath.get(normalized) ?? emptyEntry(normalized);
     const scriptStats = buildV8ScriptStats(script);
 
-    current.functionCoverage = toPercent(scriptStats.coveredFunctions, scriptStats.totalFunctions);
-    current.lineCoverage = toPercent(scriptStats.coveredRanges, scriptStats.totalRanges);
+    current.functionCoverage = toPercent(
+      scriptStats.coveredFunctions,
+      scriptStats.totalFunctions,
+    );
+    current.lineCoverage = toPercent(
+      scriptStats.coveredRanges,
+      scriptStats.totalRanges,
+    );
     current.branchCoverage = current.lineCoverage;
     current.uncoveredFunctions = scriptStats.uncoveredFunctions.slice(0, 20);
 
@@ -211,8 +222,13 @@ async function readJson<T>(filePath: string): Promise<T | null> {
 async function loadVitestOrJestSummary(
   config: RepoConfig,
 ): Promise<CoverageFileEntry[]> {
-  const summaryPath = path.resolve(config.path, "coverage", "coverage-summary.json");
-  const parsed = await readJson<Record<string, CoverageSummaryEntry>>(summaryPath);
+  const summaryPath = path.resolve(
+    config.path,
+    "coverage",
+    "coverage-summary.json",
+  );
+  const parsed =
+    await readJson<Record<string, CoverageSummaryEntry>>(summaryPath);
   if (!parsed) {
     return [];
   }
@@ -220,7 +236,9 @@ async function loadVitestOrJestSummary(
   return toCoverageEntriesFromSummary(config.path, parsed);
 }
 
-async function loadV8Coverage(config: RepoConfig): Promise<CoverageFileEntry[]> {
+async function loadV8Coverage(
+  config: RepoConfig,
+): Promise<CoverageFileEntry[]> {
   const envDir = process.env.NODE_V8_COVERAGE;
   const candidates = [
     path.resolve(config.path, ".warden", "runtime", "v8-coverage"),
@@ -231,7 +249,12 @@ async function loadV8Coverage(config: RepoConfig): Promise<CoverageFileEntry[]> 
     try {
       const entries = await readdir(dir, { withFileTypes: true });
       const files = entries
-        .filter((entry) => entry.isFile() && entry.name.startsWith("coverage-") && entry.name.endsWith(".json"))
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            entry.name.startsWith("coverage-") &&
+            entry.name.endsWith(".json"),
+        )
         .map((entry) => path.join(dir, entry.name));
       if (files.length === 0) {
         continue;
@@ -281,7 +304,12 @@ async function loadIstanbulCoverage(
 async function readPreviousCoverage(
   config: RepoConfig,
 ): Promise<Map<string, number>> {
-  const snapshotsRoot = path.resolve(process.cwd(), "data", config.slug, "snapshots");
+  const snapshotsRoot = path.resolve(
+    process.cwd(),
+    "data",
+    config.slug,
+    "snapshots",
+  );
   try {
     const entries = await readdir(snapshotsRoot, { withFileTypes: true });
     const sorted = entries
@@ -296,7 +324,9 @@ async function readPreviousCoverage(
         continue;
       }
 
-      return new Map(parsed.files.map((entry) => [entry.path, entry.lineCoverage]));
+      return new Map(
+        parsed.files.map((entry) => [entry.path, entry.lineCoverage]),
+      );
     }
   } catch {
     return new Map<string, number>();
@@ -310,7 +340,10 @@ function annotateWithChurn(
   gitStats: GitStatsSnapshot,
 ): CoverageFileEntry[] {
   const churnMap = new Map(
-    gitStats.windows["7d"].highChurnFiles.map((entry) => [entry.path, entry.editCount]),
+    gitStats.windows["7d"].highChurnFiles.map((entry) => [
+      entry.path,
+      entry.editCount,
+    ]),
   );
 
   return entries.map((entry) => {
@@ -360,12 +393,15 @@ export async function collectCoverage(
     .sort((left, right) => left.lineCoverage - right.lineCoverage);
 
   const totalFiles = withChurn.length;
-  const coveredFiles = withChurn.filter((entry) => entry.lineCoverage > 0).length;
+  const coveredFiles = withChurn.filter(
+    (entry) => entry.lineCoverage > 0,
+  ).length;
   const averageCoverage =
     totalFiles > 0
       ? Number(
           (
-            withChurn.reduce((sum, entry) => sum + entry.lineCoverage, 0) / totalFiles
+            withChurn.reduce((sum, entry) => sum + entry.lineCoverage, 0) /
+            totalFiles
           ).toFixed(2),
         )
       : 0;

@@ -105,7 +105,10 @@ function appendCoverageAndDocs(lines: string[], bundle: SnapshotBundle): void {
     const highChurnUncovered = bundle.coverage.files
       .filter((entry) => entry.isHighChurn && entry.lineCoverage < 50)
       .slice(0, 5)
-      .map((entry) => `${entry.path} (${entry.churnEdits ?? 0} edits, ${entry.lineCoverage}%)`)
+      .map(
+        (entry) =>
+          `${entry.path} (${entry.churnEdits ?? 0} edits, ${entry.lineCoverage}%)`,
+      )
       .join(", ");
 
     lines.push(
@@ -122,7 +125,10 @@ function appendCoverageAndDocs(lines: string[], bundle: SnapshotBundle): void {
   if (bundle.docStaleness) {
     const staleDocs = bundle.docStaleness.staleDocFiles
       .slice(0, 5)
-      .map((entry) => `${entry.docPath} (${entry.codeChangesSince} code changes since doc update)`)
+      .map(
+        (entry) =>
+          `${entry.docPath} (${entry.codeChangesSince} code changes since doc update)`,
+      )
       .join(", ");
 
     lines.push(

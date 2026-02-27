@@ -35,7 +35,9 @@ function parseCommitLine(line: string): string | null {
   return line.split(" ")[1] ?? null;
 }
 
-function parseNumstatLine(line: string): { added: number; removed: number; filePath: string } | null {
+function parseNumstatLine(
+  line: string,
+): { added: number; removed: number; filePath: string } | null {
   const parts = line.split("\t");
   if (parts.length < 3) {
     return null;
@@ -293,7 +295,9 @@ function summarizeComponent(
       if (!right) {
         continue;
       }
-      const direct = pairRates.get(`${left}::${right}`) ?? pairRates.get(`${right}::${left}`);
+      const direct =
+        pairRates.get(`${left}::${right}`) ??
+        pairRates.get(`${right}::${left}`);
       if (typeof direct === "number") {
         rateSum += direct;
         rateCount += 1;

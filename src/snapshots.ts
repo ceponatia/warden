@@ -17,7 +17,9 @@ export interface LoadedSnapshot extends SnapshotBundle {
   timestamp: string;
 }
 
-export async function readJsonIfPresent<T>(filePath: string): Promise<T | null> {
+export async function readJsonIfPresent<T>(
+  filePath: string,
+): Promise<T | null> {
   try {
     const raw = await readFile(filePath, "utf8");
     return JSON.parse(raw) as T;
@@ -57,25 +59,21 @@ export async function loadSnapshotByTimestamp(
     coverage,
     docStaleness,
   ] = await Promise.all([
-      readFile(path.join(snapshotDir, "git-stats.json"), "utf8"),
-      readFile(path.join(snapshotDir, "staleness.json"), "utf8"),
-      readFile(path.join(snapshotDir, "debt-markers.json"), "utf8"),
-      readJsonIfPresent<ComplexitySnapshot>(
-        path.join(snapshotDir, "complexity.json"),
-      ),
-      readJsonIfPresent<ImportsSnapshot>(
-        path.join(snapshotDir, "imports.json"),
-      ),
-      readJsonIfPresent<RuntimeSnapshot>(
-        path.join(snapshotDir, "runtime.json"),
-      ),
-      readJsonIfPresent<CoverageSnapshot>(
-        path.join(snapshotDir, "coverage.json"),
-      ),
-      readJsonIfPresent<DocStalenessSnapshot>(
-        path.join(snapshotDir, "doc-staleness.json"),
-      ),
-    ]);
+    readFile(path.join(snapshotDir, "git-stats.json"), "utf8"),
+    readFile(path.join(snapshotDir, "staleness.json"), "utf8"),
+    readFile(path.join(snapshotDir, "debt-markers.json"), "utf8"),
+    readJsonIfPresent<ComplexitySnapshot>(
+      path.join(snapshotDir, "complexity.json"),
+    ),
+    readJsonIfPresent<ImportsSnapshot>(path.join(snapshotDir, "imports.json")),
+    readJsonIfPresent<RuntimeSnapshot>(path.join(snapshotDir, "runtime.json")),
+    readJsonIfPresent<CoverageSnapshot>(
+      path.join(snapshotDir, "coverage.json"),
+    ),
+    readJsonIfPresent<DocStalenessSnapshot>(
+      path.join(snapshotDir, "doc-staleness.json"),
+    ),
+  ]);
 
   return {
     timestamp,

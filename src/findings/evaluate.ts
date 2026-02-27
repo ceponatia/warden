@@ -300,7 +300,10 @@ function appendCoverage(
       });
     }
 
-    if (coverage.isHighChurn && coverage.lineCoverage < config.thresholds.lowCoveragePct) {
+    if (
+      coverage.isHighChurn &&
+      coverage.lineCoverage < config.thresholds.lowCoveragePct
+    ) {
       addFinding(findings, config, allowlistRules, {
         code: "WD-M7-002",
         metric: "M7",
@@ -309,7 +312,10 @@ function appendCoverage(
       });
     }
 
-    if ((coverage.lineCoverageDelta ?? 0) <= -config.thresholds.coverageRegressionPct) {
+    if (
+      (coverage.lineCoverageDelta ?? 0) <=
+      -config.thresholds.coverageRegressionPct
+    ) {
       addFinding(findings, config, allowlistRules, {
         code: "WD-M7-003",
         metric: "M7",
