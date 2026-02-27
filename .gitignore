@@ -9,3 +9,4 @@ dist/
 config/github.json
 config/github-webhook.json
 package-lock.json
+.markdownlint-cli2.jsonc
