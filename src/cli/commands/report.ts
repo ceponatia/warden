@@ -137,7 +137,9 @@ function toSuggestionLines(content: string): string[] {
     .slice(0, 8);
 }
 
-async function buildPortfolioAiRecommendations(report: string): Promise<string[]> {
+async function buildPortfolioAiRecommendations(
+  report: string,
+): Promise<string[]> {
   const prompt = [
     "You are Warden's portfolio analyst.",
     "Return 3-6 concise, actionable recommendations as plain bullet lines.",
@@ -162,7 +164,9 @@ async function renderPortfolioReportForRepos(
 ): Promise<void> {
   const crossRepo = await runCrossRepoAnalysis(configs);
   if (!crossRepo) {
-    throw new Error("Portfolio report requires at least two configured repositories.");
+    throw new Error(
+      "Portfolio report requires at least two configured repositories.",
+    );
   }
 
   let aiRecommendations: string[] | undefined;
@@ -195,7 +199,9 @@ async function renderPortfolioReportForRepos(
 
   process.stdout.write(finalReport);
   process.stdout.write("\n");
-  process.stdout.write(`Portfolio report written to data/portfolio-reports/${fileName}\n`);
+  process.stdout.write(
+    `Portfolio report written to data/portfolio-reports/${fileName}\n`,
+  );
 }
 
 export async function runReportCommand(
@@ -206,8 +212,12 @@ export async function runReportCommand(
     portfolio?: boolean;
   } = {},
 ): Promise<void> {
-  const { repoSlug, analyze = false, compareBranch, portfolio = false } =
-    options;
+  const {
+    repoSlug,
+    analyze = false,
+    compareBranch,
+    portfolio = false,
+  } = options;
   const configs = await loadRepoConfigs();
   if (configs.length === 0) {
     throw new Error("No repos configured. Run 'warden init <path>' first.");

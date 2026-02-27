@@ -384,8 +384,11 @@ export async function renderPortfolioReport(
   const repos = [...configs].sort((a, b) => a.slug.localeCompare(b.slug));
   const repoLines = await Promise.all(
     repos.map(async (repo) => {
-      const active = await loadWorkDocuments(repo.slug).then((docs) =>
-        docs.filter((doc) => doc.status !== "resolved" && doc.status !== "wont-fix").length,
+      const active = await loadWorkDocuments(repo.slug).then(
+        (docs) =>
+          docs.filter(
+            (doc) => doc.status !== "resolved" && doc.status !== "wont-fix",
+          ).length,
       );
       const lastCollected = await loadLatestSnapshot(repo.slug)
         .then((snapshot) => snapshot.gitStats.collectedAt)
@@ -406,17 +409,27 @@ export async function renderPortfolioReport(
 
   const header = `| Package | ${repos.map((repo) => repo.slug).join(" | ")} |`;
   const separator = `| ${["---", ...repos.map(() => "---")].join(" | ")} |`;
-  const driftRows = crossRepo.sharedDependencyDrift
-    .slice(0, 30)
-    .map((entry) => driftRow(entry.dependency, repos.map((repo) => repo.slug), entry.versions));
+  const driftRows = crossRepo.sharedDependencyDrift.slice(0, 30).map((entry) =>
+    driftRow(
+      entry.dependency,
+      repos.map((repo) => repo.slug),
+      entry.versions,
+    ),
+  );
 
   const metricRows = crossRepo.metricTrends
-    .filter((row) => Object.values(row.repoTrends).some((trend) => trend !== "stable"))
+    .filter((row) =>
+      Object.values(row.repoTrends).some((trend) => trend !== "stable"),
+    )
     .slice(0, 12)
     .map((row) => {
       const repoStates = repos.map((repo) => {
         const trend = row.repoTrends[repo.slug] ?? "stable";
-        return trend === "worsening" ? "↑ worsening" : trend === "improving" ? "↓ improving" : "→ stable";
+        return trend === "worsening"
+          ? "↑ worsening"
+          : trend === "improving"
+            ? "↓ improving"
+            : "→ stable";
       });
       return `| ${row.metric} | ${repoStates.join(" | ")} |`;
     });

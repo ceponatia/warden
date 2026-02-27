@@ -18,7 +18,17 @@ import {
   worstSeverity,
 } from "./cross-repo-helpers.js";
 
-const METRICS: FindingMetric[] = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"];
+const METRICS: FindingMetric[] = [
+  "M1",
+  "M2",
+  "M3",
+  "M4",
+  "M5",
+  "M6",
+  "M7",
+  "M8",
+  "M9",
+];
 
 type TrendDirection = "worsening" | "stable" | "improving";
 
@@ -126,13 +136,18 @@ function computeCorrelatedFindings(
     const repos = [...reposSet].sort();
     correlated.push({ code, repos, count: repos.length });
   }
-  return correlated.sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+  return correlated.sort(
+    (a, b) => b.count - a.count || a.code.localeCompare(b.code),
+  );
 }
 
 function buildSharedFindingPatterns(
   activeDocsByRepo: Map<string, Awaited<ReturnType<typeof loadWorkDocuments>>>,
 ): SystemicPattern[] {
-  const codeToRefs = new Map<string, Array<{ slug: string; findingId: string; severity: Severity }>>();
+  const codeToRefs = new Map<
+    string,
+    Array<{ slug: string; findingId: string; severity: Severity }>
+  >();
 
   for (const [slug, docs] of activeDocsByRepo.entries()) {
     for (const doc of docs) {
@@ -173,7 +188,10 @@ function normalizeHotspotPath(filePath: string): string {
 function buildSharedHotspotPatterns(
   activeDocsByRepo: Map<string, Awaited<ReturnType<typeof loadWorkDocuments>>>,
 ): SystemicPattern[] {
-  const hotspots = new Map<string, Array<{ slug: string; severity: Severity; findingId: string }>>();
+  const hotspots = new Map<
+    string,
+    Array<{ slug: string; severity: Severity; findingId: string }>
+  >();
 
   for (const [slug, docs] of activeDocsByRepo.entries()) {
     for (const doc of docs) {
@@ -205,8 +223,12 @@ function buildSharedHotspotPatterns(
   return patterns;
 }
 
-function findingCountByMetric(report: StructuredReport | null): Record<FindingMetric, number> {
-  const counts = Object.fromEntries(METRICS.map((metric) => [metric, 0])) as Record<FindingMetric, number>;
+function findingCountByMetric(
+  report: StructuredReport | null,
+): Record<FindingMetric, number> {
+  const counts = Object.fromEntries(
+    METRICS.map((metric) => [metric, 0]),
+  ) as Record<FindingMetric, number>;
   if (!report) return counts;
   for (const finding of report.findings) {
     counts[finding.metric] = (counts[finding.metric] ?? 0) + 1;
@@ -214,7 +236,10 @@ function findingCountByMetric(report: StructuredReport | null): Record<FindingMe
   return counts;
 }
 
-function metricSeverity(report: StructuredReport | null, metric: FindingMetric): Severity {
+function metricSeverity(
+  report: StructuredReport | null,
+  metric: FindingMetric,
+): Severity {
   if (!report) return "S5";
   return worstSeverity(
     report.findings
@@ -224,7 +249,10 @@ function metricSeverity(report: StructuredReport | null, metric: FindingMetric):
 }
 
 function detectMetricTrendPatterns(
-  reportPairsByRepo: Map<string, [StructuredReport | null, StructuredReport | null]>,
+  reportPairsByRepo: Map<
+    string,
+    [StructuredReport | null, StructuredReport | null]
+  >,
 ): { patterns: SystemicPattern[]; summaries: MetricTrendSummary[] } {
   const patterns: SystemicPattern[] = [];
   const summaries: MetricTrendSummary[] = [];
@@ -238,7 +266,8 @@ function detectMetricTrendPatterns(
       const previousCount = findingCountByMetric(previous)[metric] ?? 0;
       const delta = latestCount - previousCount;
       repoDeltas[slug] = delta;
-      repoTrends[slug] = delta > 0 ? "worsening" : delta < 0 ? "improving" : "stable";
+      repoTrends[slug] =
+        delta > 0 ? "worsening" : delta < 0 ? "improving" : "stable";
     }
 
     summaries.push({ metric, repoTrends, repoDeltas });
@@ -258,7 +287,10 @@ function detectMetricTrendPatterns(
           trend === "worsening"
             ? worstSeverity(
                 affectedRepos.map((slug) =>
-                  metricSeverity(reportPairsByRepo.get(slug)?.[0] ?? null, metric),
+                  metricSeverity(
+                    reportPairsByRepo.get(slug)?.[0] ?? null,
+                    metric,
+                  ),
                 ),
               )
             : "S4",
@@ -275,7 +307,9 @@ function detectMetricTrendPatterns(
   return { patterns, summaries };
 }
 
-async function computeTrustAggregation(repoSlugs: string[]): Promise<AgentTrustSummary[]> {
+async function computeTrustAggregation(
+  repoSlugs: string[],
+): Promise<AgentTrustSummary[]> {
   const agentNames = new Set<string>();
   for (const slug of repoSlugs) {
     const entries = await loadAllTrustMetrics(slug);
@@ -291,20 +325,42 @@ async function computeTrustAggregation(repoSlugs: string[]): Promise<AgentTrustS
 
 function buildRecommendations(report: CrossRepoReport): string[] {
   const recommendations: string[] = [];
-  if (report.sharedDependencyDrift.some((entry) => entry.driftLevel === "major")) {
-    recommendations.push("Resolve major dependency version drift first to reduce cross-repo integration risk.");
+  if (
+    report.sharedDependencyDrift.some((entry) => entry.driftLevel === "major")
+  ) {
+    recommendations.push(
+      "Resolve major dependency version drift first to reduce cross-repo integration risk.",
+    );
   }
-  if (report.systemicPatterns.some((pattern) => pattern.patternType === "shared-finding")) {
-    recommendations.push("Create shared remediation playbooks for finding codes recurring across repositories.");
+  if (
+    report.systemicPatterns.some(
+      (pattern) => pattern.patternType === "shared-finding",
+    )
+  ) {
+    recommendations.push(
+      "Create shared remediation playbooks for finding codes recurring across repositories.",
+    );
   }
-  if (report.systemicPatterns.some((pattern) => pattern.patternType === "metric-trend" && pattern.description.includes("worsening"))) {
-    recommendations.push("Address worsening trends through templates and tooling changes rather than isolated repo fixes.");
+  if (
+    report.systemicPatterns.some(
+      (pattern) =>
+        pattern.patternType === "metric-trend" &&
+        pattern.description.includes("worsening"),
+    )
+  ) {
+    recommendations.push(
+      "Address worsening trends through templates and tooling changes rather than isolated repo fixes.",
+    );
   }
   if (report.trustAggregation.some((entry) => !entry.globalEligible)) {
-    recommendations.push("Gate global auto-merge to agents with healthy trust in every monitored repository.");
+    recommendations.push(
+      "Gate global auto-merge to agents with healthy trust in every monitored repository.",
+    );
   }
   if (recommendations.length === 0) {
-    recommendations.push("No significant cross-repo risks detected in this run.");
+    recommendations.push(
+      "No significant cross-repo risks detected in this run.",
+    );
   }
   return recommendations;
 }
@@ -318,8 +374,14 @@ export async function runCrossRepoAnalysis(
   const repoSlugs = configs.map((config) => config.slug);
   const directDeps = new Map<string, Map<string, string>>();
   const transitiveDeps = new Map<string, Map<string, string>>();
-  const activeDocsByRepo = new Map<string, Awaited<ReturnType<typeof loadWorkDocuments>>>();
-  const reportPairsByRepo = new Map<string, [StructuredReport | null, StructuredReport | null]>();
+  const activeDocsByRepo = new Map<
+    string,
+    Awaited<ReturnType<typeof loadWorkDocuments>>
+  >();
+  const reportPairsByRepo = new Map<
+    string,
+    [StructuredReport | null, StructuredReport | null]
+  >();
 
   await Promise.all(
     configs.map(async (config) => {
@@ -327,7 +389,9 @@ export async function runCrossRepoAnalysis(
         readPackageVersionMap(config.path),
         readTransitiveVersionMap(config.path),
         loadWorkDocuments(config.slug).then((entries) =>
-          entries.filter((doc) => doc.status !== "resolved" && doc.status !== "wont-fix"),
+          entries.filter(
+            (doc) => doc.status !== "resolved" && doc.status !== "wont-fix",
+          ),
         ),
         readLatestTwoStructuredReports(config.slug),
       ]);
@@ -352,7 +416,10 @@ export async function runCrossRepoAnalysis(
   const report: CrossRepoReport = {
     timestamp: new Date().toISOString(),
     repos: repoSlugs,
-    sharedDependencyDrift: [...computeDependencyDrift(directDeps, "direct"), ...computeDependencyDrift(transitiveDeps, "transitive")].sort((a, b) => {
+    sharedDependencyDrift: [
+      ...computeDependencyDrift(directDeps, "direct"),
+      ...computeDependencyDrift(transitiveDeps, "transitive"),
+    ].sort((a, b) => {
       const severityDelta = severityRank(a.severity) - severityRank(b.severity);
       if (severityDelta !== 0) return severityDelta;
       return a.dependency.localeCompare(b.dependency);
@@ -369,7 +436,11 @@ export async function runCrossRepoAnalysis(
     const reportDir = path.resolve(process.cwd(), "data", "cross-repo");
     await mkdir(reportDir, { recursive: true });
     const fileName = `${report.timestamp.replace(/:/g, "-").replace(/\..+$/, "")}.json`;
-    await writeFile(path.join(reportDir, fileName), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await writeFile(
+      path.join(reportDir, fileName),
+      `${JSON.stringify(report, null, 2)}\n`,
+      "utf8",
+    );
   }
 
   return report;

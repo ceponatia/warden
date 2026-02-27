@@ -78,7 +78,7 @@ export async function readPackageVersionMap(
 ): Promise<Map<string, string>> {
   const packageJsonPath = path.join(repoPath, "package.json");
   try {
-      const raw = await readFile(packageJsonPath, "utf8");
+    const raw = await readFile(packageJsonPath, "utf8");
     const parsed = JSON.parse(raw) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;

@@ -470,10 +470,9 @@ export function registerDashboardRoutes(app: Express): void {
   app.get("/portfolio/trends", async (req, res) => {
     const range =
       typeof req.query.range === "string" ? req.query.range : undefined;
-    const metric = typeof req.query.metric === "string" ? req.query.metric : "M4";
-    res
-      .type("html")
-      .send(await renderPortfolioTrendsPage(metric, range));
+    const metric =
+      typeof req.query.metric === "string" ? req.query.metric : "M4";
+    res.type("html").send(await renderPortfolioTrendsPage(metric, range));
   });
   app.get("/portfolio/drift", async (_req, res) => {
     res.type("html").send(await renderPortfolioDriftPage());

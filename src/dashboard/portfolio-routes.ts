@@ -35,7 +35,9 @@ async function listReportFiles(slug: string): Promise<string[]> {
   }
 }
 
-async function loadLatestReport(slug: string): Promise<StructuredReport | null> {
+async function loadLatestReport(
+  slug: string,
+): Promise<StructuredReport | null> {
   const files = await listReportFiles(slug);
   const latestJson = files.find((file) => file.endsWith(".json"));
   if (!latestJson) {
@@ -58,14 +60,19 @@ export async function renderPortfolioOverviewPage(): Promise<string> {
 
   const metrics = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"];
   const latestReports = await Promise.all(
-    repos.map(async (repo) => ({ slug: repo.slug, report: await loadLatestReport(repo.slug) })),
+    repos.map(async (repo) => ({
+      slug: repo.slug,
+      report: await loadLatestReport(repo.slug),
+    })),
   );
 
   const heatRows = latestReports
     .map(({ slug, report }) => {
       const cells = metrics
         .map((metric) => {
-          const matching = (report?.findings ?? []).filter((finding) => finding.metric === metric);
+          const matching = (report?.findings ?? []).filter(
+            (finding) => finding.metric === metric,
+          );
           const severity =
             matching.length === 0
               ? "S5"
@@ -121,8 +128,12 @@ export async function renderPortfolioTrendsPage(
 
   const labelsByRepo = await Promise.all(
     repos.map(async (repo) => {
-      const files = (await listReportFiles(repo.slug)).filter((file) => file.endsWith(".json"));
-      const limited = files.slice(0, Math.max(1, Math.min(files.length, rangeDays))).reverse();
+      const files = (await listReportFiles(repo.slug)).filter((file) =>
+        file.endsWith(".json"),
+      );
+      const limited = files
+        .slice(0, Math.max(1, Math.min(files.length, rangeDays)))
+        .reverse();
       const points: number[] = [];
       const labels: string[] = [];
       for (const file of limited) {
@@ -131,15 +142,18 @@ export async function renderPortfolioTrendsPage(
         );
         if (!report) continue;
         labels.push(report.timestamp);
-        points.push(report.findings.filter((finding) => finding.metric === selectedMetric).length);
+        points.push(
+          report.findings.filter((finding) => finding.metric === selectedMetric)
+            .length,
+        );
       }
       return { repo: repo.slug, labels, points };
     }),
   );
 
-  const labels = labelsByRepo.reduce<string[]>((acc, entry) =>
-    entry.labels.length > acc.length ? entry.labels : acc,
-  [],
+  const labels = labelsByRepo.reduce<string[]>(
+    (acc, entry) => (entry.labels.length > acc.length ? entry.labels : acc),
+    [],
   );
 
   const datasets = labelsByRepo.map((entry) => ({
@@ -154,7 +168,10 @@ export async function renderPortfolioTrendsPage(
         <label>Metric
           <select name="metric">
             ${["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"]
-              .map((m) => `<option value="${m}" ${selectedMetric === m ? "selected" : ""}>${m}</option>`)
+              .map(
+                (m) =>
+                  `<option value="${m}" ${selectedMetric === m ? "selected" : ""}>${m}</option>`,
+              )
               .join("")}
           </select>
         </label>
