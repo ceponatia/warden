@@ -45,19 +45,21 @@ export async function startDashboardServer(
       payload: { jobId: job.id, exitCode: job.exitCode ?? 1 },
     });
 
-    if (job.command === "collect") {
-      wsHub.broadcast({
-        type: "snapshot-ready",
-        slug: job.slug,
-        payload: { timestamp: new Date().toISOString() },
-      });
-    }
-    if (job.command === "analyze") {
-      wsHub.broadcast({
-        type: "analysis-ready",
-        slug: job.slug,
-        payload: { timestamp: new Date().toISOString() },
-      });
+    if (job.exitCode === 0) {
+      if (job.command === "collect") {
+        wsHub.broadcast({
+          type: "snapshot-ready",
+          slug: job.slug,
+          payload: { timestamp: new Date().toISOString() },
+        });
+      }
+      if (job.command === "analyze") {
+        wsHub.broadcast({
+          type: "analysis-ready",
+          slug: job.slug,
+          payload: { timestamp: new Date().toISOString() },
+        });
+      }
     }
   });
 

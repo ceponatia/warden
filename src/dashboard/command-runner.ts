@@ -20,6 +20,15 @@ export interface CommandRunnerEvents {
   complete: (job: CommandJob) => void;
 }
 
+const MAX_OUTPUT_LINES = 2000;
+
+function appendOutputLine(job: CommandJob, line: string): void {
+  job.output.push(line);
+  if (job.output.length > MAX_OUTPUT_LINES) {
+    job.output.splice(0, job.output.length - MAX_OUTPUT_LINES);
+  }
+}
+
 function appendStream(
   buffer: string,
   chunk: Buffer,
@@ -72,7 +81,7 @@ export class CommandRunner extends EventEmitter {
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdoutTail = appendStream(stdoutTail, chunk, (line) => {
-        job.output.push(line);
+        appendOutputLine(job, line);
         this.emit("output", job, line);
       });
     });
@@ -80,19 +89,19 @@ export class CommandRunner extends EventEmitter {
     child.stderr.on("data", (chunk: Buffer) => {
       stderrTail = appendStream(stderrTail, chunk, (line) => {
         const prefixed = `[stderr] ${line}`;
-        job.output.push(prefixed);
+        appendOutputLine(job, prefixed);
         this.emit("output", job, prefixed);
       });
     });
 
     child.on("close", (exitCode) => {
       if (stdoutTail.length > 0) {
-        job.output.push(stdoutTail);
+        appendOutputLine(job, stdoutTail);
         this.emit("output", job, stdoutTail);
       }
       if (stderrTail.length > 0) {
         const prefixed = `[stderr] ${stderrTail}`;
-        job.output.push(prefixed);
+        appendOutputLine(job, prefixed);
         this.emit("output", job, prefixed);
       }
 
@@ -112,8 +121,23 @@ export class CommandRunner extends EventEmitter {
 
     child.on("error", (error) => {
       const line = `[spawn-error] ${error.message}`;
-      job.output.push(line);
+      appendOutputLine(job, line);
       this.emit("output", job, line);
+
+      if (job.status === "running") {
+        job.status = "failed";
+        job.completedAt = new Date().toISOString();
+        job.exitCode = 1;
+        this.activeBySlug.delete(slug);
+        this.emit("complete", job);
+
+        setTimeout(
+          () => {
+            this.jobs.delete(job.id);
+          },
+          10 * 60 * 1000,
+        );
+      }
     });
 
     return job;

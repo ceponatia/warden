@@ -8,6 +8,7 @@ import { loadRepoConfigs } from "../config/loader.js";
 import { readJsonIfPresent } from "../snapshots.js";
 import type { StructuredReport } from "../types/report.js";
 import type { Severity, WorkDocumentStatus } from "../types/work.js";
+import { VALID_STATUSES } from "../types/work.js";
 import {
   addNote,
   loadWorkDocument,
@@ -17,16 +18,6 @@ import {
 import type { CommandRunner } from "./command-runner.js";
 import type { DashboardWebSocketHub } from "./websocket.js";
 
-const VALID_STATUSES: WorkDocumentStatus[] = [
-  "unassigned",
-  "auto-assigned",
-  "agent-in-progress",
-  "agent-complete",
-  "pm-review",
-  "blocked",
-  "resolved",
-  "wont-fix",
-];
 const COMMANDS = ["collect", "analyze", "report"] as const;
 
 const statusSchema = z.object({

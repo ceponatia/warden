@@ -1,4 +1,4 @@
-/* global window, document, fetch, WebSocket, setTimeout, URLSearchParams, HTMLButtonElement, HTMLAnchorElement, HTMLSelectElement, HTMLTextAreaElement, CSS */
+/* global window, document, fetch, WebSocket, setTimeout, URLSearchParams, URL, HTMLButtonElement, HTMLAnchorElement, HTMLSelectElement, HTMLTextAreaElement, CSS */
 
 (function () {
   const root = document.body;
@@ -164,7 +164,21 @@
       });
 
       findingTableBody.innerHTML = rows.join("");
-      window.location.hash = `q=${encodeURIComponent(searchInput.value)}&sort=${encodeURIComponent(sortSelect.value)}&status=${encodeURIComponent(status)}`;
+      var hashParts = [
+        "q=" + encodeURIComponent(searchInput.value),
+        "sort=" + encodeURIComponent(sortSelect.value),
+        "status=" + encodeURIComponent(status),
+        "metrics=" + encodeURIComponent(metrics.join(",")),
+        "severities=" + encodeURIComponent(severities.join(",")),
+      ];
+      var hash = hashParts.join("&");
+      if (window.history && typeof window.history.replaceState === "function") {
+        var url = new URL(window.location.href);
+        url.hash = hash;
+        window.history.replaceState(null, "", url);
+      } else {
+        window.location.hash = hash;
+      }
     }
 
     function setCommandButtonsDisabled(disabled) {
@@ -308,10 +322,24 @@
     const q = hashParams.get("q");
     const sort = hashParams.get("sort");
     const status = hashParams.get("status");
+    const metricsParam = hashParams.get("metrics");
+    const severitiesParam = hashParams.get("severities");
     if (q) searchInput.value = q;
     if (sort) sortSelect.value = sort;
     if (status && statusFilter instanceof HTMLSelectElement) {
       statusFilter.value = status;
+    }
+    if (metricsParam) {
+      const metricValues = metricsParam.split(",").filter(Boolean);
+      document.querySelectorAll('input[name="metric-filter"]').forEach(function (el) {
+        el.checked = metricValues.indexOf(el.value) >= 0;
+      });
+    }
+    if (severitiesParam) {
+      const severityValues = severitiesParam.split(",").filter(Boolean);
+      document.querySelectorAll('input[name="severity-filter"]').forEach(function (el) {
+        el.checked = severityValues.indexOf(el.value) >= 0;
+      });
     }
 
     renderFindings();
