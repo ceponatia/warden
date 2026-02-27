@@ -8,6 +8,7 @@ import type { WorkDocument } from "../types/work.js";
 import { addNote } from "../work/manager.js";
 import { tryAutoMergeForWorkDocument } from "../work/autonomy.js";
 import { recordValidationResult } from "../work/trust.js";
+import { pushBranchAndCreatePullRequest } from "../github/pr.js";
 import { callProvider } from "./provider.js";
 
 const execFileAsync = promisify(execFile);
@@ -215,6 +216,28 @@ export async function runLintFixAgent(
         "autonomy",
         `Draft branch retained for review: ${branchName}`,
       );
+
+      if (config.source === "github") {
+        try {
+          const created = await pushBranchAndCreatePullRequest({
+            config,
+            doc,
+            sourceBranch: branchName,
+            targetBranch: originalBranch,
+          });
+          if (created) {
+            addNote(
+              doc,
+              "github",
+              `Draft PR created: ${created.prUrl} (#${created.number}).`,
+            );
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          addNote(doc, "github", `Failed to create draft PR: ${message}`);
+        }
+      }
     }
   } else {
     doc.status = "blocked";

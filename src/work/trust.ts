@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { TrustMetrics } from "../types/work.js";
+import type { PrReviewRecord, TrustMetrics } from "../types/work.js";
 
 function trustPath(slug: string, agentName: string): string {
   return path.resolve(
@@ -19,12 +19,42 @@ function createEmptyMetrics(agentName: string): TrustMetrics {
     mergesAccepted: 0,
     mergesModified: 0,
     mergesRejected: 0,
+    prReviewScore: 1,
     validationPassRate: 0,
     selfRepairRate: 0,
     consecutiveCleanMerges: 0,
     totalRuns: 0,
     lastRunAt: new Date().toISOString(),
   };
+}
+
+function reviewLogPath(slug: string, agentName: string): string {
+  return path.resolve(
+    process.cwd(),
+    "data",
+    slug,
+    "trust",
+    `${agentName}.reviews.json`,
+  );
+}
+
+async function appendReviewRecord(
+  slug: string,
+  agentName: string,
+  record: PrReviewRecord,
+): Promise<void> {
+  const filePath = reviewLogPath(slug, agentName);
+  let current: PrReviewRecord[] = [];
+  try {
+    const raw = await readFile(filePath, "utf8");
+    current = JSON.parse(raw) as PrReviewRecord[];
+  } catch {
+    current = [];
+  }
+
+  current.unshift(record);
+  const capped = current.slice(0, 100);
+  await writeFile(filePath, `${JSON.stringify(capped, null, 2)}\n`, "utf8");
 }
 
 export async function loadTrustMetrics(
@@ -122,4 +152,27 @@ export async function loadAllTrustMetrics(
     }
   }
   return results;
+}
+
+export async function recordPrReviewResult(
+  slug: string,
+  agentName: string,
+  passed: boolean,
+  comments: string[],
+): Promise<void> {
+  const metrics = await loadTrustMetrics(slug, agentName);
+
+  if (passed) {
+    metrics.prReviewScore = Math.min(1, metrics.prReviewScore + 0.05);
+  } else {
+    metrics.prReviewScore = Math.max(0, metrics.prReviewScore - 0.15);
+  }
+
+  metrics.lastRunAt = new Date().toISOString();
+  await saveTrustMetrics(slug, metrics);
+  await appendReviewRecord(slug, agentName, {
+    reviewedAt: metrics.lastRunAt,
+    passed,
+    comments,
+  });
 }

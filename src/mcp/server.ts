@@ -122,6 +122,25 @@ function registerTemplatedResources(server: McpServer): void {
 
   registerTemplatedResource(
     server,
+    "warden-repo-github",
+    "warden://repos/{slug}/github",
+    "GitHub source metadata for a repo",
+    "application/json",
+    (variables) => `warden://repos/${variableToString(variables.slug)}/github`,
+  );
+
+  registerTemplatedResource(
+    server,
+    "warden-repo-pull-requests",
+    "warden://repos/{slug}/pull-requests",
+    "Recorded pull request history for a repo",
+    "application/json",
+    (variables) =>
+      `warden://repos/${variableToString(variables.slug)}/pull-requests`,
+  );
+
+  registerTemplatedResource(
+    server,
     "warden-wiki",
     "warden://wiki/{code}",
     "Wiki page for a finding code",

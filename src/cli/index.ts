@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 
 import { runAnalyzeCommand } from "./commands/analyze.js";
+import { runAddCommand } from "./commands/add.js";
 import { runAutonomyCommand } from "./commands/autonomy.js";
 import { runCollectCommand } from "./commands/collect.js";
 import { runDashboardCommand } from "./commands/dashboard.js";
+import { runGithubCommand } from "./commands/github.js";
 import { runHookCommand } from "./commands/hook.js";
 import { runInitCommand } from "./commands/init.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { runPruneCommand } from "./commands/prune.js";
 import { runReportCommand } from "./commands/report.js";
+import { runWebhookCommand } from "./commands/webhook.js";
 import { runWikiCommand } from "./commands/wiki.js";
 import { runWorkCommand } from "./commands/work.js";
 
@@ -16,6 +19,7 @@ function printHelp(): void {
   process.stdout.write(`Warden CLI\n\n`);
   process.stdout.write(`Usage:\n`);
   process.stdout.write(`  warden init <path>\n`);
+  process.stdout.write(`  warden add <path|github:owner/repo>\n`);
   process.stdout.write(`  warden collect [--repo <slug>]\n`);
   process.stdout.write(
     `  warden report [--repo <slug>] [--analyze] [--compare <branch>]\n`,
@@ -27,6 +31,8 @@ function printHelp(): void {
   process.stdout.write(`  warden hook install [--repo <slug>]\n`);
   process.stdout.write(`  warden hook uninstall [--repo <slug>]\n`);
   process.stdout.write(`  warden hook tick --repo <slug>\n`);
+  process.stdout.write(`  warden github auth [--token <token>]\n`);
+  process.stdout.write(`  warden webhook <start|stop>\n`);
   process.stdout.write(`  warden wiki <WD-code>\n`);
   process.stdout.write(
     `  warden work [--repo <slug>] [<findingId>] [--status <status>] [--note <text>]\n`,
@@ -67,6 +73,16 @@ function createCommandHandlers(): Record<string, CommandHandler> {
 
       await runInitCommand(repoPath);
     },
+    add: async (rest: string[]) => {
+      const target = rest[0];
+      if (!target) {
+        throw new Error(
+          "Missing target argument. Usage: warden add <path|github:owner/repo>",
+        );
+      }
+
+      await runAddCommand(target);
+    },
     collect: async (rest: string[]) => {
       const repoSlug = getFlagValue(rest, "--repo");
       await runCollectCommand(repoSlug);
@@ -97,6 +113,12 @@ function createCommandHandlers(): Record<string, CommandHandler> {
       const action = parseHookAction(rest[0]);
       const repoSlug = getFlagValue(rest, "--repo");
       await runHookCommand(action, repoSlug);
+    },
+    github: async (rest: string[]) => {
+      await runGithubCommand(rest);
+    },
+    webhook: async (rest: string[]) => {
+      await runWebhookCommand(rest);
     },
     wiki: async (rest: string[]) => {
       const code = rest[0];

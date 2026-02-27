@@ -93,6 +93,43 @@ async function readRepoUri(uri: string): Promise<string | null> {
     return JSON.stringify(snapshots, null, 2);
   }
 
+  const githubMatch = uri.match(/^warden:\/\/repos\/([^/]+)\/github$/);
+  if (githubMatch?.[1]) {
+    const configs = await loadRepoConfigs();
+    const config = configs.find((entry) => entry.slug === githubMatch[1]);
+    return JSON.stringify(
+      {
+        slug: config?.slug,
+        source: config?.source ?? "local",
+        github: config?.github ?? null,
+      },
+      null,
+      2,
+    );
+  }
+
+  const prMatch = uri.match(/^warden:\/\/repos\/([^/]+)\/pull-requests$/);
+  if (prMatch?.[1]) {
+    const filePath = path.resolve(
+      process.cwd(),
+      "data",
+      prMatch[1],
+      "github",
+      "pull-requests.jsonl",
+    );
+    try {
+      const raw = await readFile(filePath, "utf8");
+      const rows = raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      return JSON.stringify(rows, null, 2);
+    } catch {
+      return JSON.stringify([], null, 2);
+    }
+  }
+
   return null;
 }
 
