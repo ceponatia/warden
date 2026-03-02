@@ -16,6 +16,7 @@ import {
   saveWorkDocument,
 } from "../work/manager.js";
 import { dispatch } from "../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../notifications/utils.js";
 import type { CommandRunner } from "./command-runner.js";
 import type { DashboardWebSocketHub } from "./websocket.js";
 
@@ -307,7 +308,7 @@ function registerNotificationRoutes(router: Router): void {
           source: "dashboard",
           action: "manual-test",
         },
-        dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(repoSlug)}`,
+        dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(repoSlug)}`,
       },
       { force: true },
     );

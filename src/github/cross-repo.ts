@@ -11,6 +11,7 @@ import {
   type AgentTrustSummary,
 } from "../work/trust.js";
 import { dispatch } from "../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../notifications/utils.js";
 import { loadWorkDocuments } from "../work/manager.js";
 import {
   classifyDriftLevel,
@@ -477,7 +478,7 @@ export async function runCrossRepoAnalysis(
           topPattern: top.description,
           affectedRepos: top.affectedRepos.join(", "),
         },
-        dashboardUrl: "http://localhost:3333/portfolio",
+        dashboardUrl: `${getDashboardBaseUrl()}/portfolio`,
       });
     } catch {
       // Notifications are best-effort.

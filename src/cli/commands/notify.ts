@@ -3,6 +3,7 @@ import {
   dispatch,
   sendScheduledDigests,
 } from "../../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../../notifications/utils.js";
 import type { NotificationEvent } from "../../types/notifications.js";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
@@ -69,7 +70,7 @@ async function runNotifyTest(repoSlug?: string): Promise<void> {
       source: "warden notify test",
       intent: "configuration verification",
     },
-    dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(targetSlug)}`,
+    dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(targetSlug)}`,
   };
 
   const results = await dispatch(testEvent, { force: true });

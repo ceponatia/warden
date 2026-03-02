@@ -15,6 +15,7 @@ import {
   recordMergeResult,
 } from "./trust.js";
 import { dispatch } from "../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../notifications/utils.js";
 import { loadRepoConfigs } from "../config/loader.js";
 import type {
   AutonomyConfig,
@@ -517,7 +518,7 @@ export async function tryAutoMergeForWorkDocument(params: {
         sourceBranch: params.sourceBranch,
         targetBranch: params.targetBranch,
       },
-      dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(params.slug)}/agents`,
+      dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(params.slug)}/agents`,
     });
   } catch {
     // Notifications are best-effort.
@@ -575,7 +576,7 @@ export async function evaluateRevocations(params: {
             agentName: rule.agentName,
             reason: revocationReason,
           },
-          dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(params.slug)}/agents`,
+          dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(params.slug)}/agents`,
         });
       } catch {
         // Notifications are best-effort.

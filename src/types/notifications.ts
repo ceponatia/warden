@@ -10,6 +10,11 @@ export type NotificationEventType =
   | "analysis-complete"
   | "collection-failed";
 
+export type NotificationLogEventType =
+  | NotificationEventType
+  | "digest-sent"
+  | "digest-failed";
+
 export interface NotificationEvent {
   type: NotificationEventType;
   slug: string;
@@ -75,7 +80,7 @@ export interface NotificationDispatchResult {
 
 export interface NotificationLogEntry {
   timestamp: string;
-  eventType: NotificationEventType;
+  eventType: NotificationLogEventType;
   summary: string;
   severity?: Severity;
   channelId: string;

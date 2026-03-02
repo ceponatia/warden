@@ -5,6 +5,7 @@ import type { RepoConfig } from "../types/snapshot.js";
 import type { WorkDocument } from "../types/work.js";
 import { runCommand } from "../collectors/utils.js";
 import { dispatch } from "../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../notifications/utils.js";
 import { createGithubClient } from "./client.js";
 
 function inferAgentName(doc: WorkDocument): string {
@@ -123,7 +124,7 @@ export async function pushBranchAndCreatePullRequest(params: {
         findingId: params.doc.findingId,
         findingCode: params.doc.code,
       },
-      dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(params.config.slug)}/agents`,
+      dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(params.config.slug)}/agents`,
     });
   } catch {
     // Notifications are best-effort.

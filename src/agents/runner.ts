@@ -34,6 +34,7 @@ import { computeDelta } from "./delta.js";
 import { assemblePrompt } from "./prompt.js";
 import { callProvider } from "./provider.js";
 import { dispatch } from "../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../notifications/utils.js";
 
 export interface AnalysisResult {
   analysis: string;
@@ -347,7 +348,7 @@ async function handleEscalations(slug: string): Promise<string[]> {
         consecutiveReports: doc.consecutiveReports,
         status: doc.status,
       },
-      dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(slug)}/work?findingId=${encodeURIComponent(doc.findingId)}`,
+      dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(slug)}/work?findingId=${encodeURIComponent(doc.findingId)}`,
     });
   }
 
@@ -500,7 +501,7 @@ export async function runAnalysis(
           drop,
           threshold: config.thresholds.coverageRegressionPct,
         },
-        dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(config.slug)}`,
+        dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(config.slug)}`,
       });
     }
   }
@@ -556,7 +557,7 @@ export async function runAnalysis(
         improvements: improvements.length,
         escalations: escalationMessages.length,
       },
-      dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(config.slug)}`,
+      dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(config.slug)}`,
     });
 
     return {
@@ -587,7 +588,7 @@ export async function runAnalysis(
       improvements: 0,
       escalations: escalationMessages.length,
     },
-    dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(config.slug)}`,
+    dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(config.slug)}`,
   });
 
   return {

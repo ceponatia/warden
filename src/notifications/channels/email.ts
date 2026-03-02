@@ -54,6 +54,15 @@ function eventLabel(type: NotificationEventType): string {
   }
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function digestCounts(events: NotificationEvent[]): string {
   const counts = new Map<NotificationEventType, number>();
   for (const event of events) {
@@ -80,7 +89,7 @@ export function renderDigestHtml(
     .slice(0, 15)
     .map(
       (event) =>
-        `<tr><td>${event.timestamp.slice(0, 10)}</td><td>${event.slug}</td><td>${eventLabel(event.type)}</td><td>${event.severity ?? "n/a"}</td><td>${event.summary}</td></tr>`,
+        `<tr><td>${escapeHtml(event.timestamp.slice(0, 10))}</td><td>${escapeHtml(event.slug)}</td><td>${eventLabel(event.type)}</td><td>${escapeHtml(event.severity ?? "n/a")}</td><td>${escapeHtml(event.summary)}</td></tr>`,
     )
     .join("\n");
 
@@ -88,7 +97,7 @@ export function renderDigestHtml(
 <html>
   <body style="font-family: Helvetica, Arial, sans-serif; color: #222;">
     <h2>Warden Notification Digest</h2>
-    <p>Period: <strong>${period.start.slice(0, 10)}</strong> to <strong>${period.end.slice(0, 10)}</strong></p>
+    <p>Period: <strong>${escapeHtml(period.start.slice(0, 10))}</strong> to <strong>${escapeHtml(period.end.slice(0, 10))}</strong></p>
 
     <h3>Event Totals</h3>
     <table border="1" cellspacing="0" cellpadding="6" style="border-collapse: collapse;">

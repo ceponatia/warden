@@ -19,6 +19,7 @@ import { collectImports } from "./collect-imports.js";
 import { collectRuntime } from "./collect-runtime.js";
 import { collectStaleness } from "./collect-staleness.js";
 import { dispatch } from "../notifications/dispatcher.js";
+import { getDashboardBaseUrl } from "../notifications/utils.js";
 
 export interface CollectorResults {
   gitStats: GitStatsSnapshot;
@@ -76,7 +77,7 @@ export async function runCollectors(
         details: {
           error: error instanceof Error ? error.message : String(error),
         },
-        dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(config.slug)}`,
+        dashboardUrl: `${getDashboardBaseUrl()}/repo/${encodeURIComponent(config.slug)}`,
       });
     } catch {
       // Notifications are best-effort.

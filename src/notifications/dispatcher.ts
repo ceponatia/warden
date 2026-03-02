@@ -6,6 +6,7 @@ import {
 } from "./history.js";
 import { sendSlack } from "./channels/slack.js";
 import { sendEmailDigest, sendEmailImmediate } from "./channels/email.js";
+import { loadRepoConfigs } from "../config/loader.js";
 import type {
   ChannelConfig,
   NotificationConfig,
@@ -139,11 +140,12 @@ export async function dispatch(
   options: DispatchOptions = {},
 ): Promise<NotificationDispatchResult[]> {
   const config = await loadNotificationConfig();
-  await appendNotificationEvent(event);
 
   if (!config) {
     return [];
   }
+
+  await appendNotificationEvent(event);
 
   const channels = routeChannels(config, event.slug);
   const results = await Promise.all(
@@ -183,8 +185,9 @@ function digestWindow(days: number): { start: string; end: string } {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
-function allConfigSlugs(config: NotificationConfig): string[] {
-  return Object.keys(config.repos).sort();
+async function allTargetSlugs(): Promise<string[]> {
+  const repoConfigs = await loadRepoConfigs();
+  return repoConfigs.map((r) => r.slug).sort();
 }
 
 function inRange(timestamp: string, startIso: string, endIso: string): boolean {
@@ -201,7 +204,7 @@ export async function sendScheduledDigests(
 
   const days = options.days && options.days > 0 ? options.days : 7;
   const window = digestWindow(days);
-  const targetSlugs = options.slug ? [options.slug] : allConfigSlugs(config);
+  const targetSlugs = options.slug ? [options.slug] : await allTargetSlugs();
 
   const results: NotificationDispatchResult[] = [];
 
@@ -236,7 +239,7 @@ export async function sendScheduledDigests(
         results.push(successResult);
         await appendNotificationLog(slug, {
           timestamp: new Date().toISOString(),
-          eventType: "analysis-complete",
+          eventType: "digest-sent",
           summary: `Digest sent for ${days}d window`,
           channelId: id,
           channelType: "email",
@@ -252,7 +255,7 @@ export async function sendScheduledDigests(
         results.push(failedResult);
         await appendNotificationLog(slug, {
           timestamp: new Date().toISOString(),
-          eventType: "analysis-complete",
+          eventType: "digest-failed",
           summary: `Digest failed for ${days}d window`,
           channelId: id,
           channelType: "email",

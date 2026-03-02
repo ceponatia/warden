@@ -18,12 +18,31 @@ function logPath(slug: string): string {
   return path.join(notificationsDir(slug), "delivery-log.jsonl");
 }
 
+const fileWriteQueues = new Map<string, Promise<void>>();
+
 async function appendJsonLine(
   filePath: string,
   payload: unknown,
 ): Promise<void> {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await appendFile(filePath, `${JSON.stringify(payload)}\n`, "utf8");
+  const previous = fileWriteQueues.get(filePath) ?? Promise.resolve();
+
+  const writePromise = previous
+    .catch(() => {
+      // Ignore errors from earlier writes in the queue.
+    })
+    .then(async () => {
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await appendFile(filePath, `${JSON.stringify(payload)}\n`, "utf8");
+    })
+    .finally(() => {
+      if (fileWriteQueues.get(filePath) === writePromise) {
+        fileWriteQueues.delete(filePath);
+      }
+    });
+
+  fileWriteQueues.set(filePath, writePromise);
+
+  return writePromise;
 }
 
 export async function appendNotificationEvent(
