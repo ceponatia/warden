@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { TrajectoryStore } from '../trajectory-store.js';
+import { PatchOperation } from '../../types/trajectory.js';
 
 describe('TrajectoryStore', () => {
   let tmpDir: string;
@@ -88,5 +89,67 @@ describe('TrajectoryStore', () => {
     });
 
     await expect(store.save(graph)).rejects.toThrow(/Edge references missing node/);
+  });
+
+  it('should apply a patch of operations', async () => {
+    await store.init();
+    
+    await store.patch('test-actor', [
+      {
+        type: 'addNode',
+        node: {
+          id: 'n1',
+          title: 'Node 1',
+          status: 'opened',
+          type: 'task',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          findingRefs: [],
+          workRefs: [],
+          tags: [],
+          metadata: {},
+        }
+      },
+      {
+        type: 'addNode',
+        node: {
+          id: 'n2',
+          title: 'Node 2',
+          status: 'opened',
+          type: 'task',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          findingRefs: [],
+          workRefs: [],
+          tags: [],
+          metadata: {},
+        }
+      },
+      {
+        type: 'addEdge',
+        edge: { from: 'n1', to: 'n2', kind: 'blocks', metadata: {} }
+      }
+    ]);
+
+    const graph = await store.load();
+    expect(graph.nodes).toHaveLength(2);
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.meta.revision).toBe(1);
+  });
+
+  it('should detect cycles in patch', async () => {
+    await store.init();
+    const now = new Date().toISOString();
+    
+    await store.patch('test-actor', [
+      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', createdAt: now, updatedAt: now, findingRefs: [], workRefs: [], tags: [], metadata: {} } },
+      { type: 'addNode', node: { id: 'n2', title: 'N2', status: 'opened', type: 'task', createdAt: now, updatedAt: now, findingRefs: [], workRefs: [], tags: [], metadata: {} } },
+      { type: 'addEdge', edge: { from: 'n1', to: 'n2', kind: 'blocks', metadata: {} } }
+    ]);
+
+    const cyclePatch: PatchOperation[] = [
+      { type: 'addEdge', edge: { from: 'n2', to: 'n1', kind: 'blocks', metadata: {} } }
+    ];
+    await expect(store.patch('test-actor', cyclePatch)).rejects.toThrow(/Cycle detected/);
   });
 });

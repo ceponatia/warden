@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { TrajectoryGraph, TrajectoryGraphSchema, TrajectoryEvent } from '../types/trajectory.js';
+import { TrajectoryGraph, TrajectoryGraphSchema, TrajectoryEvent, PatchOperation } from '../types/trajectory.js';
 import { validateTrajectoryInvariants } from './trajectory-invariants.js';
 
 export class TrajectoryStore {
@@ -66,5 +66,57 @@ export class TrajectoryStore {
   async validate(): Promise<string[]> {
     const graph = await this.load();
     return validateTrajectoryInvariants(graph);
+  }
+
+  async patch(actor: string, operations: PatchOperation[]): Promise<void> {
+    const graph = await this.load();
+    const now = new Date().toISOString();
+
+    for (const op of operations) {
+      switch (op.type) {
+        case 'addNode':
+          graph.nodes.push({
+            ...op.node,
+            createdAt: now,
+            updatedAt: now,
+          });
+          break;
+        case 'updateNode': {
+          const node = graph.nodes.find(n => n.id === op.id);
+          if (!node) throw new Error(`Node not found: ${op.id}`);
+          Object.assign(node, op.updates);
+          node.updatedAt = now;
+          break;
+        }
+        case 'addEdge':
+          graph.edges.push(op.edge);
+          break;
+        case 'deleteEdge':
+          graph.edges = graph.edges.filter(e => !(e.from === op.from && e.to === op.to));
+          break;
+        case 'deleteNode':
+          graph.nodes = graph.nodes.filter(n => n.id !== op.id);
+          graph.edges = graph.edges.filter(e => e.from !== op.id && e.to !== op.id);
+          break;
+        default: {
+          const unknownOp = op as { type: string };
+          throw new Error(`Unknown patch operation type: ${unknownOp.type}`);
+        }
+      }
+    }
+
+    graph.meta.revision += 1;
+    graph.meta.updatedAt = now;
+
+    await this.save(graph);
+
+    await this.appendEvent({
+      eventId: crypto.randomUUID(),
+      seq: graph.meta.revision,
+      type: 'patch',
+      at: now,
+      actor,
+      payload: { operations },
+    });
   }
 }

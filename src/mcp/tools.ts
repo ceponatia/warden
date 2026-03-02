@@ -18,6 +18,7 @@ import { loadAllTrustMetrics } from "../work/trust.js";
 import type { WorkDocumentStatus } from "../types/work.js";
 import { TrajectoryStore } from "../work/trajectory-store.js";
 import { parseMermaidTrajectory, exportMermaidTrajectory } from "../work/trajectory-vizvibe.js";
+import { PatchOperation } from "../types/trajectory.js";
 
 function ensureSlug(slug: string | undefined): string {
   if (!slug || slug.trim().length === 0) {
@@ -271,6 +272,20 @@ export async function toolTrajectoryImport(
   const graph = parseMermaidTrajectory(mermaid, repoSlug);
   await store.save(graph);
   return `Trajectory imported for ${repoSlug}`;
+}
+
+export async function toolTrajectoryPatch(
+  slug: string | undefined,
+  actor: string | undefined,
+  operations: PatchOperation[] | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!operations || !Array.isArray(operations)) {
+    throw new Error("Missing or invalid operations array");
+  }
+  const store = new TrajectoryStore(repoSlug);
+  await store.patch(actor || "mcp-tool", operations);
+  return `Trajectory patched for ${repoSlug}`;
 }
 
 export async function toolTrajectoryExport(

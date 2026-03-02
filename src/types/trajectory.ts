@@ -51,3 +51,11 @@ export const TrajectoryEventSchema = z.object({
   payload: z.record(z.string(), z.any()),
 });
 export type TrajectoryEvent = z.infer<typeof TrajectoryEventSchema>;
+
+export type PatchOperation =
+  | { type: 'addNode'; node: TrajectoryNode }
+  | { type: 'updateNode'; id: string; updates: Partial<TrajectoryNode> }
+  | { type: 'addEdge'; edge: TrajectoryEdge }
+  | { type: 'deleteEdge'; from: string; to: string }
+  | { type: 'deleteNode'; id: string };
+

@@ -23,6 +23,7 @@ import {
   toolTrajectoryGet,
   toolTrajectoryImport,
   toolTrajectoryInit,
+  toolTrajectoryPatch,
   toolTrustScores,
   toolUpdateWorkStatus,
   toolWikiLookup,
@@ -370,6 +371,21 @@ function registerTrajectoryTools(server: McpServer): void {
     },
     async ({ repo, mermaid }) => ({
       content: [{ type: "text", text: await toolTrajectoryImport(repo, mermaid) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_trajectory_patch",
+    {
+      description: "Apply a list of patch operations to the trajectory",
+      inputSchema: z.object({
+        repo: z.string().describe("Repo slug"),
+        actor: z.string().optional().describe("Actor performing the patch"),
+        operations: z.array(z.any()).describe("List of patch operations"),
+      }),
+    },
+    async ({ repo, actor, operations }) => ({
+      content: [{ type: "text", text: await toolTrajectoryPatch(repo, actor, operations) }],
     }),
   );
 
