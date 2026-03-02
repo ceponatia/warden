@@ -75,7 +75,11 @@ export abstract class BaseAgent {
     message: string,
   ): Promise<boolean> {
     await execFileAsync("git", ["add", "-A"], { cwd: repoPath });
-    const diff = await runCommandSafe("git", ["diff", "--cached", "--name-only"], repoPath);
+    const diff = await runCommandSafe(
+      "git",
+      ["diff", "--cached", "--name-only"],
+      repoPath,
+    );
     if (diff.exitCode !== 0 || diff.stdout.trim().length === 0) {
       return false;
     }

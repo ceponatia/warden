@@ -38,7 +38,8 @@ function sortCandidates(
   config: SchedulerConfig,
 ): WorkDocument[] {
   return [...docs].sort((left, right) => {
-    const severityDelta = severityRank(left.severity) - severityRank(right.severity);
+    const severityDelta =
+      severityRank(left.severity) - severityRank(right.severity);
     if (severityDelta !== 0) return severityDelta;
 
     if (right.consecutiveReports !== left.consecutiveReports) {
@@ -59,9 +60,14 @@ function sortCandidates(
 
 function resolveConfig(repoConfig: RepoConfig): SchedulerConfig {
   return {
-    maxConcurrent: repoConfig.scheduler?.maxConcurrent ?? DEFAULT_SCHEDULER_CONFIG.maxConcurrent,
-    maxPerRun: repoConfig.scheduler?.maxPerRun ?? DEFAULT_SCHEDULER_CONFIG.maxPerRun,
-    priorityOrder: repoConfig.scheduler?.priorityOrder ?? DEFAULT_SCHEDULER_CONFIG.priorityOrder,
+    maxConcurrent:
+      repoConfig.scheduler?.maxConcurrent ??
+      DEFAULT_SCHEDULER_CONFIG.maxConcurrent,
+    maxPerRun:
+      repoConfig.scheduler?.maxPerRun ?? DEFAULT_SCHEDULER_CONFIG.maxPerRun,
+    priorityOrder:
+      repoConfig.scheduler?.priorityOrder ??
+      DEFAULT_SCHEDULER_CONFIG.priorityOrder,
   };
 }
 

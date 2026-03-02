@@ -3,7 +3,11 @@ import path from "node:path";
 
 import { runCommandSafe } from "../collectors/utils.js";
 import { callProvider } from "./provider.js";
-import { BaseAgent, type AgentContext, type AgentValidation } from "./base-agent.js";
+import {
+  BaseAgent,
+  type AgentContext,
+  type AgentValidation,
+} from "./base-agent.js";
 
 interface DocTargetState {
   docPath: string;
@@ -118,17 +122,23 @@ export class DocUpdateAgent extends BaseAgent {
       return { passed: false, output: "Markdown code fences are unbalanced." };
     }
 
-    if (current.trim().length < Math.floor(state.originalContent.trim().length / 2)) {
+    if (
+      current.trim().length <
+      Math.floor(state.originalContent.trim().length / 2)
+    ) {
       return {
         passed: false,
-        output: "Updated doc shrank by more than 50%; refusing destructive update.",
+        output:
+          "Updated doc shrank by more than 50%; refusing destructive update.",
       };
     }
 
     const links = extractMarkdownLinks(current);
     for (const link of links) {
       const absolute = path.resolve(path.dirname(state.docPath), link);
-      const exists = await readFile(absolute, "utf8").then(() => true).catch(() => false);
+      const exists = await readFile(absolute, "utf8")
+        .then(() => true)
+        .catch(() => false);
       if (!exists) {
         return {
           passed: false,
@@ -137,11 +147,16 @@ export class DocUpdateAgent extends BaseAgent {
       }
     }
 
-    const typecheck = await runCommandSafe("pnpm", ["typecheck"], ctx.config.path);
+    const typecheck = await runCommandSafe(
+      "pnpm",
+      ["typecheck"],
+      ctx.config.path,
+    );
     if (typecheck.exitCode !== 0) {
       return {
         passed: false,
-        output: `Typecheck failed\n${typecheck.stdout}\n${typecheck.stderr}`.trim(),
+        output:
+          `Typecheck failed\n${typecheck.stdout}\n${typecheck.stderr}`.trim(),
       };
     }
 

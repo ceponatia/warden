@@ -1,5 +1,9 @@
 import { runLintFixAgent } from "./lint-fix-agent.js";
-import { BaseAgent, type AgentContext, type AgentResult } from "./base-agent.js";
+import {
+  BaseAgent,
+  type AgentContext,
+  type AgentResult,
+} from "./base-agent.js";
 import { DocUpdateAgent } from "./doc-update-agent.js";
 import { TestWritingAgent } from "./test-writing-agent.js";
 
@@ -35,7 +39,9 @@ class LegacyLintFixAgent extends BaseAgent {
       attempts: ctx.finding.validationResult?.attempts ?? 0,
       output:
         ctx.finding.validationResult?.lastError ??
-        (passed ? "Legacy lint-fix validation passed." : "Legacy lint-fix failed."),
+        (passed
+          ? "Legacy lint-fix validation passed."
+          : "Legacy lint-fix failed."),
     };
   }
 }

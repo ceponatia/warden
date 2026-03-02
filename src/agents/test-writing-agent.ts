@@ -3,7 +3,11 @@ import path from "node:path";
 
 import { runCommandSafe } from "../collectors/utils.js";
 import { callProvider } from "./provider.js";
-import { BaseAgent, type AgentContext, type AgentValidation } from "./base-agent.js";
+import {
+  BaseAgent,
+  type AgentContext,
+  type AgentValidation,
+} from "./base-agent.js";
 
 interface TestTargetState {
   sourcePath: string;
@@ -13,7 +17,9 @@ interface TestTargetState {
   framework: "vitest" | "jest" | "unknown";
 }
 
-function inferFramework(packageJsonText: string): "vitest" | "jest" | "unknown" {
+function inferFramework(
+  packageJsonText: string,
+): "vitest" | "jest" | "unknown" {
   const lower = packageJsonText.toLowerCase();
   if (lower.includes("vitest")) return "vitest";
   if (lower.includes("jest")) return "jest";
@@ -28,7 +34,9 @@ function toTestPath(sourcePath: string): string {
 
 function parseScripts(packageJsonText: string): Record<string, string> {
   try {
-    const parsed = JSON.parse(packageJsonText) as { scripts?: Record<string, string> };
+    const parsed = JSON.parse(packageJsonText) as {
+      scripts?: Record<string, string>;
+    };
     return parsed.scripts ?? {};
   } catch {
     return {};
@@ -65,9 +73,14 @@ export class TestWritingAgent extends BaseAgent {
     const sourcePath = path.resolve(ctx.config.path, ctx.finding.path);
     const sourceContent = await readFile(sourcePath, "utf8");
     const packageJsonPath = path.resolve(ctx.config.path, "package.json");
-    const packageJsonText = await readFile(packageJsonPath, "utf8").catch(() => "{}");
+    const packageJsonText = await readFile(packageJsonPath, "utf8").catch(
+      () => "{}",
+    );
     const framework = inferFramework(packageJsonText);
-    const testPath = path.resolve(ctx.config.path, toTestPath(ctx.finding.path));
+    const testPath = path.resolve(
+      ctx.config.path,
+      toTestPath(ctx.finding.path),
+    );
     const baselineCoverage = ctx.snapshot.coverage?.files.find(
       (entry) => entry.path === ctx.finding.path,
     )?.lineCoverage;
@@ -105,7 +118,10 @@ export class TestWritingAgent extends BaseAgent {
       return { passed: false, output: "Missing generated test context" };
     }
 
-    const packageJsonText = await readFile(path.resolve(ctx.config.path, "package.json"), "utf8").catch(() => "{}");
+    const packageJsonText = await readFile(
+      path.resolve(ctx.config.path, "package.json"),
+      "utf8",
+    ).catch(() => "{}");
     const scripts = parseScripts(packageJsonText);
     const testCommand = selectTestCommand(scripts, state.framework);
 
@@ -117,11 +133,16 @@ export class TestWritingAgent extends BaseAgent {
       };
     }
 
-    const typecheck = await runCommandSafe("pnpm", ["typecheck"], ctx.config.path);
+    const typecheck = await runCommandSafe(
+      "pnpm",
+      ["typecheck"],
+      ctx.config.path,
+    );
     if (typecheck.exitCode !== 0) {
       return {
         passed: false,
-        output: `Typecheck failed\n${typecheck.stdout}\n${typecheck.stderr}`.trim(),
+        output:
+          `Typecheck failed\n${typecheck.stdout}\n${typecheck.stderr}`.trim(),
       };
     }
 
