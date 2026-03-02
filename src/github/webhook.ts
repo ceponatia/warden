@@ -47,7 +47,25 @@ const DEFAULT_AGENT_NAME = "lint-fix-agent";
 
 function extractAgentFromBranch(branchName: string): string {
   const match = branchName.match(/^warden\/([^/]+)/);
-  return match?.[1] ?? DEFAULT_AGENT_NAME;
+  const token = match?.[1];
+  if (!token) {
+    return DEFAULT_AGENT_NAME;
+  }
+
+  if (token === "lint" || token === "lint-fix") {
+    return "lint-fix-agent";
+  }
+  if (token === "test" || token === "test-writing") {
+    return "test-writing-agent";
+  }
+  if (token === "doc" || token === "doc-update") {
+    return "doc-update-agent";
+  }
+  if (token.endsWith("-agent")) {
+    return token;
+  }
+
+  return `${token}-agent`;
 }
 
 async function handleEvent(params: {

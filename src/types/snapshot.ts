@@ -40,6 +40,12 @@ export interface WebhookConfig {
   };
 }
 
+export interface AgentSchedulerConfig {
+  maxConcurrent?: number;
+  maxPerRun?: number;
+  priorityOrder?: import("./findings.js").FindingMetric[];
+}
+
 export interface RepoConfig {
   slug: string;
   path: string;
@@ -54,6 +60,7 @@ export interface RepoConfig {
   thresholds: RepoThresholds;
   retention: RepoRetention;
   commitThreshold: number;
+  scheduler?: AgentSchedulerConfig;
   suppressions?: RepoSuppression[];
 }
 

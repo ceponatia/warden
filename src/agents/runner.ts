@@ -30,6 +30,8 @@ import { evaluateRevocations, loadAutonomyConfig } from "../work/autonomy.js";
 import { assessImpactRecords } from "../work/impact.js";
 import { runPlanningAgent } from "./planning-agent.js";
 import { updateWikiPageForResolvedFinding } from "./wiki-agent.js";
+import type { AgentResult } from "./base-agent.js";
+import { scheduleAgentWork } from "./scheduler.js";
 import { computeDelta } from "./delta.js";
 import { assemblePrompt } from "./prompt.js";
 import { callProvider } from "./provider.js";
@@ -42,6 +44,7 @@ export interface AnalysisResult {
   snapshot: LoadedSnapshot;
   findings: FindingInstance[];
   improvements: string[];
+  agentResults: AgentResult[];
   workDocumentSummary?: WorkDocumentSummary;
 }
 
@@ -231,17 +234,41 @@ async function annotateRevokedAssignments(
 function composeAnalysisWithStatus(params: {
   analysis: string;
   summary: WorkDocumentSummary;
+  agentResults: AgentResult[];
   activeRules: Awaited<ReturnType<typeof loadAutonomyConfig>>["rules"];
   impacts: Awaited<ReturnType<typeof assessImpactRecords>>;
   revoked: Awaited<ReturnType<typeof evaluateRevocations>>;
 }): string {
   const workStatusSection = renderWorkDocumentStatus(params.summary);
+  const agentSection = renderAgentResultsSection(params.agentResults);
   const autoMergeSection = renderAutoMergeActivity({
     activeRules: params.activeRules,
     impacts: params.impacts,
     revoked: params.revoked,
   });
-  return `${params.analysis}\n\n${workStatusSection}\n\n${autoMergeSection}`;
+  return `${params.analysis}\n\n${workStatusSection}\n\n${agentSection}\n\n${autoMergeSection}`;
+}
+
+function renderAgentResultsSection(agentResults: AgentResult[]): string {
+  const lines: string[] = [
+    "## Agent Activity",
+    "",
+    "| Agent | Finding | Status | Attempts | Branch | PR |",
+    "|-------|---------|--------|----------|--------|----|",
+  ];
+
+  if (agentResults.length === 0) {
+    lines.push("| (none) | - | - | - | - | - |");
+    return lines.join("\n");
+  }
+
+  for (const result of agentResults) {
+    lines.push(
+      `| ${result.agentName} | ${result.findingCode} | ${result.status} | ${result.attempts} | ${result.branch ?? "-"} | ${result.prUrl ?? "-"} |`,
+    );
+  }
+
+  return lines.join("\n");
 }
 
 async function updateExistingWorkDoc(
@@ -460,6 +487,12 @@ export async function runAnalysis(
   );
 
   const resolvedThisRun = await syncWorkDocuments(config.slug, currentFindings);
+  const docsForScheduling = await loadWorkDocuments(config.slug);
+  const agentResults = await scheduleAgentWork(
+    config,
+    currentSnapshot,
+    docsForScheduling,
+  );
   const escalationMessages = await handleEscalations(config.slug);
   const impacts = await assessImpactRecords(
     config.slug,
@@ -542,6 +575,7 @@ export async function runAnalysis(
     const fullAnalysis = composeAnalysisWithStatus({
       analysis,
       summary: workDocumentSummary,
+      agentResults,
       activeRules: autonomyConfig.rules,
       impacts,
       revoked: revokedRules,
@@ -566,6 +600,7 @@ export async function runAnalysis(
       snapshot: currentSnapshot,
       findings: currentFindings,
       improvements,
+      agentResults,
       workDocumentSummary,
     };
   }
@@ -573,6 +608,7 @@ export async function runAnalysis(
   const fullAnalysis = composeAnalysisWithStatus({
     analysis,
     summary: workDocumentSummary,
+    agentResults,
     activeRules: autonomyConfig.rules,
     impacts,
     revoked: revokedRules,
@@ -597,6 +633,7 @@ export async function runAnalysis(
     snapshot: currentSnapshot,
     findings: currentFindings,
     improvements: [],
+    agentResults,
     workDocumentSummary,
   };
 }

@@ -1,4 +1,5 @@
 import type {
+  AgentSchedulerConfig,
   GithubRepoConfig,
   RepoConfig,
   RepoRetention,
@@ -173,6 +174,22 @@ function normalizeRetention(
   };
 }
 
+function normalizeScheduler(
+  rawScheduler: AgentSchedulerConfig | undefined,
+): AgentSchedulerConfig | undefined {
+  if (!rawScheduler) {
+    return undefined;
+  }
+
+  return {
+    maxConcurrent: resolvePositiveNumber(rawScheduler.maxConcurrent, 1),
+    maxPerRun: resolvePositiveNumber(rawScheduler.maxPerRun, 5),
+    priorityOrder: Array.isArray(rawScheduler.priorityOrder)
+      ? rawScheduler.priorityOrder
+      : undefined,
+  };
+}
+
 export function normalizeRepoConfig(value: unknown): RepoConfig {
   if (typeof value !== "object" || value === null) {
     throw new Error("Invalid repo config entry");
@@ -203,6 +220,7 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
     thresholds,
     retention,
     commitThreshold,
+    scheduler: normalizeScheduler(raw.scheduler),
     suppressions: normalizeSuppressions(raw.suppressions),
   };
 }

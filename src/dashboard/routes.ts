@@ -464,7 +464,9 @@ export function registerDashboardRoutes(app: Express): void {
   app.get("/repo/:slug/agents", async (req, res) => {
     const slug = getValidatedSlug(req, res);
     if (!slug) return;
-    res.type("html").send(await renderAgentsView(slug));
+    const agentFilter =
+      typeof req.query.agent === "string" ? req.query.agent : undefined;
+    res.type("html").send(await renderAgentsView(slug, agentFilter));
   });
   app.get("/portfolio", async (_req, res) => {
     res.type("html").send(await renderPortfolioOverviewPage());
