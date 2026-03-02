@@ -1,0 +1,66 @@
+flowchart TD
+    %% === PROJECT GOALS ===
+    %% Ultimate Goal: Implement a robust, event-driven trajectory management system within Warden for multi-agent orchestration.
+
+    %% === START ===
+    %% @project_start [start, closed]
+    project_start("Project Start<br/><sub>Merge Viz Vibe trajectory vibe<br/>into Warden's data-driven architecture</sub>")
+
+    %% @ultimate_goal [end, opened]
+    ultimate_goal("Trajectory Orchestration<br/><sub>Full autonomous agent<br/>coordination via Warden state</sub>")
+
+    %% === COMPLETED WORK ===
+    %% @layer_0 [task, closed]
+    layer_0("Layer 0: Quality Gates<br/><sub>Vitest, CI/CD with frozen lockfile,<br/>and TS global types configured</sub>")
+
+    %% @layer_1 [task, closed]
+    layer_1("Layer 1: Canonical Domain<br/><sub>Zod schemas for Graph/Nodes/Edges,<br/>TrajectoryStore with event logging</sub>")
+
+    %% @layer_2 [task, closed]
+    layer_2("Layer 2: Compatibility<br/><sub>Mermaid adapter for Viz Vibe legacy<br/>support (Import/Export commands)</sub>")
+
+    %% @layer_3 [task, closed]
+    layer_3("Layer 3: Product Surfaces<br/><sub>MCP Resources/Tools and<br/>Dashboard visual trajectory view</sub>")
+
+    %% @layer_4 [task, closed]
+    layer_4("Layer 4: Safety & Policy<br/><sub>Atomic Patch API, Cycle Detection,<br/>and Optimistic Concurrency</sub>")
+
+    %% @layer_5 [task, closed]
+    layer_5("Layer 5: Governance<br/><sub>M10 Trajectory Findings, Wiki docs,<br/>and MIT Compliance Notices</sub>")
+
+    %% @hardening [task, closed]
+    hardening("Domain Hardening<br/><sub>Fixed NaN handling, path resolution,<br/>and flaky roundtrip tests</sub>")
+
+    %% === FUTURE WORK ===
+    %% @layer_6 [task, opened]
+    layer_6("Layer 6: Trajectory Analytics<br/><sub>Predictive work-velocity and<br/>drift detection across repositories</sub>")
+
+    %% === CONNECTIONS ===
+    project_start --> layer_0
+    layer_0 --> layer_1
+    layer_1 --> layer_2
+    layer_2 --> layer_3
+    layer_3 --> layer_4
+    layer_4 --> layer_5
+    layer_5 --> hardening
+    hardening -.-> layer_6
+    layer_6 -.-> ultimate_goal
+
+    %% === RECENT WORK HIGHLIGHT ===
+    subgraph recent [RECENT]
+        layer_5
+        hardening
+    end
+
+    %% === STYLES ===
+    style project_start fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style layer_0 fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style layer_1 fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style layer_2 fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style layer_3 fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style layer_4 fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style layer_5 fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style hardening fill:#2d1f4e,stroke:#c084fc,color:#e9d5ff,stroke-width:2px
+    style layer_6 fill:#1a1a2e,stroke:#4ade80,color:#86efac,stroke-width:1px
+    style ultimate_goal fill:#1a1a2e,stroke:#4ade80,color:#86efac,stroke-width:1px
+    style recent fill:transparent,stroke:#c084fc,color:#c084fc,stroke-width:2px,stroke-dasharray:5 5

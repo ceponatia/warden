@@ -43,6 +43,7 @@ Implement Viz Vibe style trajectory capability inside Warden using layered deliv
 - Layer 3: Product surfaces (CLI, MCP, dashboard, VS Code)
 - Layer 4: Safety and policy for AI-originated edits
 - Layer 5: Observability, governance, and cross-repo operation
+- Layer 6: Trajectory Analytics and Drift Detection (Predictive velocity, agent drift)
 
 ## Layer 0: Quality and Delivery Gates
 
