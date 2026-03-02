@@ -14,6 +14,9 @@ function nav(slug?: string): string {
 
   return `<nav>
     <a href="/">Overview</a>
+    <a href="/portfolio">Portfolio</a>
+    <a href="/portfolio/trends">Portfolio Trends</a>
+    <a href="/portfolio/drift">Portfolio Drift</a>
     ${repoLinks}
     <a href="/wiki">Wiki</a>
   </nav>`;
@@ -57,6 +60,10 @@ export function renderPage(
 
 export function severityBadge(severity: string): string {
   return `<span class="badge badge-${severity.toLowerCase()}">${severity}</span>`;
+}
+
+export function safeJsonForScript(value: unknown): string {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
 }
 
 export function escapeHtml(input: string): string {

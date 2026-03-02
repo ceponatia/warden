@@ -73,7 +73,7 @@ export async function toolAnalyze(slug: string | undefined): Promise<string> {
 
 export async function toolReport(slug: string | undefined): Promise<string> {
   const repoSlug = ensureSlug(slug);
-  await runReportCommand(repoSlug, false);
+  await runReportCommand({ repoSlug, analyze: false });
   return `Report generated for ${repoSlug}`;
 }
 

@@ -9,11 +9,18 @@ import {
   hasSevereAutomergeRegression,
   recordAutoMerge,
 } from "./impact.js";
-import { loadTrustMetrics, recordMergeResult } from "./trust.js";
+import {
+  computeAggregateTrust,
+  loadTrustMetrics,
+  recordMergeResult,
+} from "./trust.js";
+import { loadRepoConfigs } from "../config/loader.js";
 import type {
   AutonomyConfig,
   AutonomyGlobalDefaults,
   AutonomyRule,
+  GlobalAutonomyConfig,
+  GlobalAutonomyPolicy,
   MergeImpactRecord,
   Severity,
   TrustMetrics,
@@ -24,6 +31,10 @@ const execFileAsync = promisify(execFile);
 
 function autonomyPath(slug: string): string {
   return path.resolve(process.cwd(), "data", slug, "autonomy.json");
+}
+
+function globalAutonomyPath(): string {
+  return path.resolve(process.cwd(), "config", "autonomy-global.json");
 }
 
 function severityRank(severity: Severity): number {
@@ -46,6 +57,12 @@ function defaultConfig(): AutonomyConfig {
   };
 }
 
+function defaultGlobalAutonomyConfig(): GlobalAutonomyConfig {
+  return {
+    policies: [],
+  };
+}
+
 function normalizeConfig(input: Partial<AutonomyConfig>): AutonomyConfig {
   return {
     rules: input.rules ?? [],
@@ -53,6 +70,46 @@ function normalizeConfig(input: Partial<AutonomyConfig>): AutonomyConfig {
       ...defaultGlobalDefaults(),
       ...(input.globalDefaults ?? {}),
     },
+  };
+}
+
+const VALID_SEVERITIES: Severity[] = ["S0", "S1", "S2", "S3", "S4", "S5"];
+
+function normalizeSeverityArray(value: unknown): Severity[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [...VALID_SEVERITIES];
+  }
+  const filtered = value.filter(
+    (v): v is Severity => typeof v === "string" && (VALID_SEVERITIES as string[]).includes(v),
+  );
+  return filtered.length > 0 ? filtered : [...VALID_SEVERITIES];
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string");
+}
+
+function normalizeGlobalConfig(
+  input: Partial<GlobalAutonomyConfig>,
+): GlobalAutonomyConfig {
+  return {
+    policies: Array.isArray(input.policies)
+      ? input.policies
+          .filter(
+            (policy): policy is GlobalAutonomyPolicy =>
+              typeof policy?.agentName === "string" &&
+              typeof policy?.minAggregateScore === "number",
+          )
+          .map((policy) => ({
+            ...policy,
+            allowedSeverities: normalizeSeverityArray(policy.allowedSeverities),
+            allowedCodes: normalizeStringArray(policy.allowedCodes),
+            appliesTo: normalizeStringArray(policy.appliesTo),
+            createdAt: policy.createdAt ?? new Date().toISOString(),
+            createdBy: "manual",
+          }))
+      : [],
   };
 }
 
@@ -76,6 +133,29 @@ export async function saveAutonomyConfig(
   config: AutonomyConfig,
 ): Promise<void> {
   const filePath = autonomyPath(slug);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+}
+
+export async function loadGlobalAutonomyConfig(): Promise<GlobalAutonomyConfig> {
+  try {
+    const raw = await readFile(globalAutonomyPath(), "utf8");
+    return normalizeGlobalConfig(
+      JSON.parse(raw) as Partial<GlobalAutonomyConfig>,
+    );
+  } catch (error: unknown) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      return defaultGlobalAutonomyConfig();
+    }
+    throw error;
+  }
+}
+
+export async function saveGlobalAutonomyConfig(
+  config: GlobalAutonomyConfig,
+): Promise<void> {
+  const filePath = globalAutonomyPath();
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 }
@@ -131,6 +211,22 @@ export interface AutonomyDecision {
   eligible: boolean;
   reason: string;
   rule?: AutonomyRule;
+  globalPolicies?: GlobalAutonomyPolicy[];
+}
+
+function matchesGlobalScope(
+  policy: GlobalAutonomyPolicy,
+  slug: string,
+  findingCode: string,
+  severity: Severity,
+): boolean {
+  const appliesToRepo =
+    policy.appliesTo.length === 0 || policy.appliesTo.includes(slug);
+  const allowsCode =
+    policy.allowedCodes.length === 0 ||
+    policy.allowedCodes.includes(findingCode);
+  const allowsSeverity = policy.allowedSeverities.includes(severity);
+  return appliesToRepo && allowsCode && allowsSeverity;
 }
 
 export async function checkAutoMergeEligibility(params: {
@@ -138,6 +234,7 @@ export async function checkAutoMergeEligibility(params: {
   agentName: string;
   findingCode: string;
   severity: Severity;
+  repoSlugs?: string[];
 }): Promise<AutonomyDecision> {
   const config = await loadAutonomyConfig(params.slug);
   const rule = config.rules.find(
@@ -178,7 +275,107 @@ export async function checkAutoMergeEligibility(params: {
     };
   }
 
-  return { eligible: true, reason: "Eligible for auto-merge.", rule };
+  const globalConfig = await loadGlobalAutonomyConfig();
+  const applicablePolicies = globalConfig.policies.filter((policy) =>
+    policy.agentName === params.agentName
+      ? matchesGlobalScope(
+          policy,
+          params.slug,
+          params.findingCode,
+          params.severity,
+        )
+      : false,
+  );
+
+  if (applicablePolicies.length > 0) {
+    const slugs =
+      params.repoSlugs ?? (await loadRepoConfigs()).map((entry) => entry.slug);
+    const aggregate = await computeAggregateTrust(params.agentName, slugs);
+    const matchedPolicy = applicablePolicies.find(
+      (policy) => aggregate.aggregateScore >= policy.minAggregateScore,
+    );
+
+    if (!matchedPolicy) {
+      return {
+        eligible: false,
+        reason:
+          "Aggregate trust score does not meet global autonomy policy threshold.",
+        rule,
+        globalPolicies: applicablePolicies,
+      };
+    }
+
+    if (!aggregate.globalEligible) {
+      return {
+        eligible: false,
+        reason:
+          "Agent is not globally eligible because at least one repo trust score is below minimum threshold.",
+        rule,
+        globalPolicies: applicablePolicies,
+      };
+    }
+  }
+
+  return {
+    eligible: true,
+    reason: "Eligible for auto-merge.",
+    rule,
+    globalPolicies: applicablePolicies,
+  };
+}
+
+function sortedUnique(arr: string[]): string[] {
+  return [...new Set(arr)].sort();
+}
+
+export async function grantGlobalAutonomyPolicy(params: {
+  agentName: string;
+  minAggregateScore: number;
+  allowedSeverities?: Severity[];
+  allowedCodes?: string[];
+  appliesTo?: string[];
+}): Promise<GlobalAutonomyPolicy> {
+  const config = await loadGlobalAutonomyConfig();
+  const policy: GlobalAutonomyPolicy = {
+    agentName: params.agentName,
+    minAggregateScore: params.minAggregateScore,
+    allowedSeverities: sortedUnique(
+      params.allowedSeverities && params.allowedSeverities.length > 0
+        ? params.allowedSeverities
+        : ["S0", "S1", "S2", "S3", "S4", "S5"],
+    ) as Severity[],
+    allowedCodes: sortedUnique(params.allowedCodes ?? []),
+    appliesTo: sortedUnique(params.appliesTo ?? []),
+    createdAt: new Date().toISOString(),
+    createdBy: "manual",
+  };
+
+  const index = config.policies.findIndex(
+    (entry) =>
+      entry.agentName === policy.agentName &&
+      JSON.stringify(sortedUnique(entry.allowedSeverities)) ===
+        JSON.stringify(policy.allowedSeverities) &&
+      JSON.stringify(sortedUnique(entry.allowedCodes)) ===
+        JSON.stringify(policy.allowedCodes) &&
+      JSON.stringify(sortedUnique(entry.appliesTo)) ===
+        JSON.stringify(policy.appliesTo),
+  );
+
+  if (index >= 0) {
+    config.policies[index] = policy;
+  } else {
+    config.policies.push(policy);
+  }
+
+  await saveGlobalAutonomyConfig(config);
+  return policy;
+}
+
+export async function listGlobalAutonomyPolicies(): Promise<
+  GlobalAutonomyPolicy[]
+> {
+  const config = await loadGlobalAutonomyConfig();
+  return config.policies;
 }
 
 export async function grantAutonomyRule(params: {
@@ -262,12 +459,14 @@ export async function tryAutoMergeForWorkDocument(params: {
   agentName: string;
   sourceBranch: string;
   targetBranch: string;
+  repoSlugs?: string[];
 }): Promise<{ merged: boolean; reason: string }> {
   const decision = await checkAutoMergeEligibility({
     slug: params.slug,
     agentName: params.agentName,
     findingCode: params.doc.code,
     severity: params.doc.severity,
+    repoSlugs: params.repoSlugs,
   });
 
   if (!decision.eligible) {

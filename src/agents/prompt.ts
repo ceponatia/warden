@@ -1,4 +1,5 @@
 import { listCodes } from "../findings/registry.js";
+import type { CrossRepoReport } from "../github/cross-repo.js";
 import type { FindingInstance } from "../types/findings.js";
 import type { RepoConfig, SnapshotBundle } from "../types/snapshot.js";
 import type { SnapshotDelta } from "./delta.js";
@@ -158,12 +159,60 @@ function appendDeltaLines(
   lines.push("", heading, describeDelta(delta));
 }
 
+function buildCrossRepoContextLines(
+  repoSlug: string,
+  crossRepo: CrossRepoReport,
+): string[] {
+  const siblingRepos = crossRepo.repos.filter((slug) => slug !== repoSlug);
+  if (siblingRepos.length === 0) {
+    return [];
+  }
+
+  const systemic = crossRepo.systemicPatterns
+    .filter((pattern) => pattern.affectedRepos.includes(repoSlug))
+    .slice(0, 6)
+    .map((pattern) => `- ${pattern.description}`);
+
+  const dependencyDrift = crossRepo.sharedDependencyDrift
+    .filter((entry) => Object.keys(entry.versions).includes(repoSlug))
+    .slice(0, 6)
+    .map((entry) => {
+      const local = entry.versions[repoSlug] ?? "n/a";
+      const peers = Object.entries(entry.versions)
+        .filter(([slug]) => slug !== repoSlug)
+        .map(([slug, version]) => `${slug}:${version}`)
+        .join(", ");
+      return `- ${entry.dependency}: ${local} here vs ${peers}`;
+    });
+
+  const lines = [
+    "",
+    "## Cross-repo context",
+    `This repo is monitored alongside: ${siblingRepos.join(", ")}.`,
+  ];
+
+  if (systemic.length > 0) {
+    lines.push("", "Systemic patterns detected:", ...systemic);
+  }
+  if (dependencyDrift.length > 0) {
+    lines.push("", "Dependency drift impacting this repo:", ...dependencyDrift);
+  }
+
+  lines.push(
+    "",
+    "Consider whether issues in this repo are part of broader organizational patterns.",
+  );
+
+  return lines;
+}
+
 export function assemblePrompt(
   config: RepoConfig,
   bundle: SnapshotBundle,
   delta?: SnapshotDelta,
   deltaContextLabel?: string,
   activeFindings?: FindingInstance[],
+  crossRepo?: CrossRepoReport | null,
 ): string {
   const { gitStats, staleness, debtMarkers } = bundle;
 
@@ -207,6 +256,9 @@ export function assemblePrompt(
   appendImportAndRuntimeLines(lines, bundle);
   appendCoverageAndDocs(lines, bundle);
   appendDeltaLines(lines, delta, deltaContextLabel);
+  if (crossRepo && crossRepo.repos.length >= 2) {
+    lines.push(...buildCrossRepoContextLines(config.slug, crossRepo));
+  }
 
   lines.push(
     "",

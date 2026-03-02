@@ -3,6 +3,13 @@ import path from "node:path";
 
 import type { PrReviewRecord, TrustMetrics } from "../types/work.js";
 
+export interface AgentTrustSummary {
+  agentName: string;
+  repoScores: Record<string, number>;
+  aggregateScore: number;
+  globalEligible: boolean;
+}
+
 function trustPath(slug: string, agentName: string): string {
   return path.resolve(
     process.cwd(),
@@ -180,4 +187,69 @@ export async function recordPrReviewResult(
     passed,
     comments,
   });
+}
+
+function scoreTrust(metrics: TrustMetrics): number {
+  const mergeTotal =
+    metrics.mergesAccepted + metrics.mergesModified + metrics.mergesRejected;
+  const acceptanceRate =
+    mergeTotal > 0 ? metrics.mergesAccepted / mergeTotal : 0.5;
+  const cleanMergeScore = Math.min(1, metrics.consecutiveCleanMerges / 10);
+  const validationScore = Math.max(0, Math.min(1, metrics.validationPassRate));
+  const reviewScore = Math.max(0, Math.min(1, metrics.prReviewScore));
+
+  return Number(
+    (
+      acceptanceRate * 0.35 +
+      validationScore * 0.35 +
+      reviewScore * 0.2 +
+      cleanMergeScore * 0.1
+    ).toFixed(4),
+  );
+}
+
+function scoreWeight(metrics: TrustMetrics): number {
+  const mergeTotal =
+    metrics.mergesAccepted + metrics.mergesModified + metrics.mergesRejected;
+  const evidencePoints = mergeTotal + metrics.totalRuns;
+  return Math.max(1, evidencePoints);
+}
+
+export async function computeAggregateTrust(
+  agentName: string,
+  repoSlugs: string[],
+): Promise<AgentTrustSummary> {
+  const uniqueSlugs = [...new Set(repoSlugs)];
+  if (uniqueSlugs.length === 0) {
+    return {
+      agentName,
+      repoScores: {},
+      aggregateScore: 0,
+      globalEligible: false,
+    };
+  }
+
+  const repoScores: Record<string, number> = {};
+  let weightedTotal = 0;
+  let totalWeight = 0;
+
+  for (const slug of uniqueSlugs) {
+    const metrics = await loadTrustMetrics(slug, agentName);
+    const score = scoreTrust(metrics);
+    const weight = scoreWeight(metrics);
+    repoScores[slug] = score;
+    weightedTotal += score * weight;
+    totalWeight += weight;
+  }
+
+  const aggregateScore =
+    totalWeight > 0 ? Number((weightedTotal / totalWeight).toFixed(4)) : 0;
+  const minRepoScore = Math.min(...Object.values(repoScores));
+
+  return {
+    agentName,
+    repoScores,
+    aggregateScore,
+    globalEligible: minRepoScore >= 0.5 && aggregateScore >= 0.7,
+  };
 }

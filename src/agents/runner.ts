@@ -1,5 +1,7 @@
 import { loadAllowlist } from "../config/allowlist.js";
+import { loadRepoConfigs } from "../config/loader.js";
 import { evaluateFindings } from "../findings/evaluate.js";
+import { runCrossRepoAnalysis } from "../github/cross-repo.js";
 import type { FindingInstance } from "../types/findings.js";
 import type { RepoConfig } from "../types/snapshot.js";
 import type { WorkDocument } from "../types/work.js";
@@ -447,12 +449,21 @@ export async function runAnalysis(
     escalationMessages,
   );
 
+  const allConfigs = await loadRepoConfigs();
+  const enableCrossRepo =
+    process.env.WARDEN_ENABLE_CROSS_REPO_ANALYSIS === "true";
+  const crossRepo =
+    enableCrossRepo && allConfigs.length >= 2
+      ? await runCrossRepoAnalysis(allConfigs, { persist: false })
+      : null;
+
   const userPrompt = assemblePrompt(
     config,
     currentSnapshot,
     baselineContext.delta,
     baselineContext.deltaContextLabel,
     currentFindings,
+    crossRepo,
   );
   const analysis = await callProvider({
     systemPrompt:

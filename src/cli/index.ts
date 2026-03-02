@@ -22,7 +22,7 @@ function printHelp(): void {
   process.stdout.write(`  warden add <path|github:owner/repo>\n`);
   process.stdout.write(`  warden collect [--repo <slug>]\n`);
   process.stdout.write(
-    `  warden report [--repo <slug>] [--analyze] [--compare <branch>]\n`,
+    `  warden report [--repo <slug>] [--analyze] [--compare <branch>] [--portfolio]\n`,
   );
   process.stdout.write(`  warden analyze [--repo <slug>]\n`);
   process.stdout.write(`  warden autonomy <grant|revoke|list|impact> ...\n`);
@@ -91,7 +91,8 @@ function createCommandHandlers(): Record<string, CommandHandler> {
       const repoSlug = getFlagValue(rest, "--repo");
       const analyze = rest.includes("--analyze");
       const compareBranch = getFlagValue(rest, "--compare");
-      await runReportCommand(repoSlug, analyze, compareBranch);
+      const portfolio = rest.includes("--portfolio");
+      await runReportCommand({ repoSlug, analyze, compareBranch, portfolio });
     },
     analyze: async (rest: string[]) => {
       const repoSlug = getFlagValue(rest, "--repo");

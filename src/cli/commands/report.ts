@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { computeDelta } from "../../agents/delta.js";
@@ -9,8 +9,13 @@ import {
   summarizeFindingsByCode,
 } from "../../findings/evaluate.js";
 import { runAnalysis } from "../../agents/runner.js";
+import { callProvider } from "../../agents/provider.js";
+import { runCrossRepoAnalysis } from "../../github/cross-repo.js";
 import { pruneReports } from "../../retention.js";
-import { renderTemplateReport } from "../../reporter/template-report.js";
+import {
+  renderPortfolioReport,
+  renderTemplateReport,
+} from "../../reporter/template-report.js";
 import {
   loadLatestSnapshot,
   loadLatestSnapshotForBranch,
@@ -122,14 +127,105 @@ async function renderReportForRepo(
   }
 }
 
-export async function runReportCommand(
-  repoSlug?: string,
-  analyze = false,
-  compareBranch?: string,
+function toSuggestionLines(content: string): string[] {
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => line.replace(/^[-*\d.\s]+/, ""))
+    .filter((line) => line.length > 0)
+    .slice(0, 8);
+}
+
+async function buildPortfolioAiRecommendations(
+  report: string,
+): Promise<string[]> {
+  const prompt = [
+    "You are Warden's portfolio analyst.",
+    "Return 3-6 concise, actionable recommendations as plain bullet lines.",
+    "Base recommendations on the portfolio report below:",
+    "",
+    report,
+  ].join("\n");
+
+  const response = await callProvider({
+    systemPrompt:
+      "You are a portfolio maintenance analyst. Provide concise and concrete recommendations.",
+    userPrompt: prompt,
+    maxTokens: 500,
+  });
+
+  return toSuggestionLines(response);
+}
+
+async function renderPortfolioReportForRepos(
+  configs: RepoConfig[],
+  analyze: boolean,
 ): Promise<void> {
+  const crossRepo = await runCrossRepoAnalysis(configs);
+  if (!crossRepo) {
+    throw new Error(
+      "Portfolio report requires at least two configured repositories.",
+    );
+  }
+
+  let aiRecommendations: string[] | undefined;
+  const initialReport = await renderPortfolioReport(configs, crossRepo);
+  if (analyze) {
+    try {
+      aiRecommendations = await buildPortfolioAiRecommendations(initialReport);
+    } catch {
+      aiRecommendations = [
+        "AI recommendations unavailable (missing provider credentials or provider error).",
+      ];
+    }
+  }
+
+  const finalReport = await renderPortfolioReport(
+    configs,
+    crossRepo,
+    aiRecommendations,
+  );
+
+  const fileName = `${timestampFileName(new Date())}.md`;
+  const reportPath = path.resolve(
+    process.cwd(),
+    "data",
+    "portfolio-reports",
+    fileName,
+  );
+  await mkdir(path.dirname(reportPath), { recursive: true });
+  await writeFile(reportPath, `${finalReport}\n`, "utf8");
+
+  process.stdout.write(finalReport);
+  process.stdout.write("\n");
+  process.stdout.write(
+    `Portfolio report written to data/portfolio-reports/${fileName}\n`,
+  );
+}
+
+export async function runReportCommand(
+  options: {
+    repoSlug?: string;
+    analyze?: boolean;
+    compareBranch?: string;
+    portfolio?: boolean;
+  } = {},
+): Promise<void> {
+  const {
+    repoSlug,
+    analyze = false,
+    compareBranch,
+    portfolio = false,
+  } = options;
   const configs = await loadRepoConfigs();
   if (configs.length === 0) {
     throw new Error("No repos configured. Run 'warden init <path>' first.");
+  }
+
+  if (portfolio) {
+    await renderPortfolioReportForRepos(configs, analyze);
+    return;
   }
 
   if (repoSlug) {
