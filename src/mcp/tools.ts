@@ -16,6 +16,8 @@ import {
 } from "../work/manager.js";
 import { loadAllTrustMetrics } from "../work/trust.js";
 import type { WorkDocumentStatus } from "../types/work.js";
+import { TrajectoryStore } from "../work/trajectory-store.js";
+import { parseMermaidTrajectory, exportMermaidTrajectory } from "../work/trajectory-vizvibe.js";
 
 function ensureSlug(slug: string | undefined): string {
   if (!slug || slug.trim().length === 0) {
@@ -237,4 +239,45 @@ export async function toolTrustScores(
   const repoSlug = ensureSlug(slug);
   const metrics = await loadAllTrustMetrics(repoSlug);
   return JSON.stringify(metrics, null, 2);
+}
+
+export async function toolTrajectoryInit(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const store = new TrajectoryStore(repoSlug);
+  await store.init();
+  return `Trajectory initialized for ${repoSlug}`;
+}
+
+export async function toolTrajectoryGet(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const store = new TrajectoryStore(repoSlug);
+  const graph = await store.load();
+  return JSON.stringify(graph, null, 2);
+}
+
+export async function toolTrajectoryImport(
+  slug: string | undefined,
+  mermaid: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!mermaid) {
+    throw new Error("Missing mermaid content");
+  }
+  const store = new TrajectoryStore(repoSlug);
+  const graph = parseMermaidTrajectory(mermaid, repoSlug);
+  await store.save(graph);
+  return `Trajectory imported for ${repoSlug}`;
+}
+
+export async function toolTrajectoryExport(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const store = new TrajectoryStore(repoSlug);
+  const graph = await store.load();
+  return exportMermaidTrajectory(graph);
 }

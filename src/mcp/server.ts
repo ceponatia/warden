@@ -19,6 +19,10 @@ import {
   toolListWorkDocs,
   toolReport,
   toolSnapshotDiff,
+  toolTrajectoryExport,
+  toolTrajectoryGet,
+  toolTrajectoryImport,
+  toolTrajectoryInit,
   toolTrustScores,
   toolUpdateWorkStatus,
   toolWikiLookup,
@@ -146,6 +150,27 @@ function registerTemplatedResources(server: McpServer): void {
     "Wiki page for a finding code",
     "text/markdown",
     (variables) => `warden://wiki/${variableToString(variables.code)}`,
+  );
+}
+
+function registerTrajectoryResources(server: McpServer): void {
+  registerTemplatedResource(
+    server,
+    "warden-repo-trajectory",
+    "warden://repos/{slug}/trajectory",
+    "Canonical trajectory graph for a repo (JSON)",
+    "application/json",
+    (variables) => `warden://repos/${variableToString(variables.slug)}/trajectory`,
+  );
+
+  registerTemplatedResource(
+    server,
+    "warden-repo-trajectory-mermaid",
+    "warden://repos/{slug}/trajectory/mermaid",
+    "Compatibility trajectory projection for a repo (Mermaid)",
+    "text/vnd.mermaid",
+    (variables) =>
+      `warden://repos/${variableToString(variables.slug)}/trajectory/mermaid`,
   );
 }
 
@@ -311,6 +336,55 @@ function registerWorkDocTools(server: McpServer): void {
   );
 }
 
+function registerTrajectoryTools(server: McpServer): void {
+  server.registerTool(
+    "warden_trajectory_init",
+    {
+      description: "Initialize trajectory for a repo",
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
+    },
+    async ({ repo }) => ({
+      content: [{ type: "text", text: await toolTrajectoryInit(repo) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_trajectory_get",
+    {
+      description: "Get trajectory graph for a repo",
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
+    },
+    async ({ repo }) => ({
+      content: [{ type: "text", text: await toolTrajectoryGet(repo) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_trajectory_import",
+    {
+      description: "Import trajectory from Mermaid content",
+      inputSchema: z.object({
+        repo: z.string().describe("Repo slug"),
+        mermaid: z.string().describe("Mermaid flowchart content"),
+      }),
+    },
+    async ({ repo, mermaid }) => ({
+      content: [{ type: "text", text: await toolTrajectoryImport(repo, mermaid) }],
+    }),
+  );
+
+  server.registerTool(
+    "warden_trajectory_export",
+    {
+      description: "Export trajectory to Mermaid content",
+      inputSchema: z.object({ repo: z.string().describe("Repo slug") }),
+    },
+    async ({ repo }) => ({
+      content: [{ type: "text", text: await toolTrajectoryExport(repo) }],
+    }),
+  );
+}
+
 function createWardenMcpServer(): McpServer {
   const server = new McpServer({
     name: "warden-mcp",
@@ -318,8 +392,10 @@ function createWardenMcpServer(): McpServer {
   });
   registerStaticResources(server);
   registerTemplatedResources(server);
+  registerTrajectoryResources(server);
   registerCoreTools(server);
   registerWorkDocTools(server);
+  registerTrajectoryTools(server);
 
   return server;
 }
