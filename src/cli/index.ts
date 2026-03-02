@@ -9,6 +9,7 @@ import { runGithubCommand } from "./commands/github.js";
 import { runHookCommand } from "./commands/hook.js";
 import { runInitCommand } from "./commands/init.js";
 import { runMcpCommand } from "./commands/mcp.js";
+import { runNotifyCommand } from "./commands/notify.js";
 import { runPruneCommand } from "./commands/prune.js";
 import { runReportCommand } from "./commands/report.js";
 import { runWebhookCommand } from "./commands/webhook.js";
@@ -33,6 +34,9 @@ function printHelp(): void {
   process.stdout.write(`  warden hook tick --repo <slug>\n`);
   process.stdout.write(`  warden github auth [--token <token>]\n`);
   process.stdout.write(`  warden webhook <start|stop>\n`);
+  process.stdout.write(
+    `  warden notify <test|digest> [--repo <slug>] [--days <n>]\n`,
+  );
   process.stdout.write(`  warden wiki <WD-code>\n`);
   process.stdout.write(
     `  warden work [--repo <slug>] [<findingId>] [--status <status>] [--note <text>]\n`,
@@ -120,6 +124,9 @@ function createCommandHandlers(): Record<string, CommandHandler> {
     },
     webhook: async (rest: string[]) => {
       await runWebhookCommand(rest);
+    },
+    notify: async (rest: string[]) => {
+      await runNotifyCommand(rest);
     },
     wiki: async (rest: string[]) => {
       const code = rest[0];

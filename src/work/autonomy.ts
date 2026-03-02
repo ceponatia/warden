@@ -14,6 +14,7 @@ import {
   loadTrustMetrics,
   recordMergeResult,
 } from "./trust.js";
+import { dispatch } from "../notifications/dispatcher.js";
 import { loadRepoConfigs } from "../config/loader.js";
 import type {
   AutonomyConfig,
@@ -80,7 +81,8 @@ function normalizeSeverityArray(value: unknown): Severity[] {
     return [...VALID_SEVERITIES];
   }
   const filtered = value.filter(
-    (v): v is Severity => typeof v === "string" && (VALID_SEVERITIES as string[]).includes(v),
+    (v): v is Severity =>
+      typeof v === "string" && (VALID_SEVERITIES as string[]).includes(v),
   );
   return filtered.length > 0 ? filtered : [...VALID_SEVERITIES];
 }
@@ -502,6 +504,25 @@ export async function tryAutoMergeForWorkDocument(params: {
     `Auto-merged ${params.sourceBranch} into ${params.targetBranch} at ${mergedAt}.`,
   );
 
+  try {
+    await dispatch({
+      type: "auto-merge",
+      slug: params.slug,
+      timestamp: mergedAt,
+      severity: params.doc.severity,
+      summary: `${params.agentName} auto-merged ${params.sourceBranch} into ${params.targetBranch}.`,
+      details: {
+        findingId: params.doc.findingId,
+        code: params.doc.code,
+        sourceBranch: params.sourceBranch,
+        targetBranch: params.targetBranch,
+      },
+      dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(params.slug)}/agents`,
+    });
+  } catch {
+    // Notifications are best-effort.
+  }
+
   return { merged: true, reason: "Merged" };
 }
 
@@ -543,6 +564,22 @@ export async function evaluateRevocations(params: {
       rule.revokedAt = new Date().toISOString();
       rule.revocationReason = revocationReason;
       revoked.push(rule);
+      try {
+        await dispatch({
+          type: "trust-revocation",
+          slug: params.slug,
+          timestamp: rule.revokedAt,
+          severity: "S1",
+          summary: `Autonomy revoked for ${rule.agentName}.`,
+          details: {
+            agentName: rule.agentName,
+            reason: revocationReason,
+          },
+          dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(params.slug)}/agents`,
+        });
+      } catch {
+        // Notifications are best-effort.
+      }
     }
   }
 

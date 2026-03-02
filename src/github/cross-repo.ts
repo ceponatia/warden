@@ -10,6 +10,7 @@ import {
   computeAggregateTrust,
   type AgentTrustSummary,
 } from "../work/trust.js";
+import { dispatch } from "../notifications/dispatcher.js";
 import { loadWorkDocuments } from "../work/manager.js";
 import {
   classifyDriftLevel,
@@ -382,26 +383,29 @@ export async function runCrossRepoAnalysis(
 
   const CONCURRENCY = 4;
   const queue = [...configs];
-  const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
-    while (queue.length > 0) {
-      const config = queue.shift();
-      if (!config) break;
-      const [direct, transitive, docs, reportPair] = await Promise.all([
-        readPackageVersionMap(config.path),
-        readTransitiveVersionMap(config.path),
-        loadWorkDocuments(config.slug).then((entries) =>
-          entries.filter(
-            (doc) => doc.status !== "resolved" && doc.status !== "wont-fix",
+  const workers = Array.from(
+    { length: Math.min(CONCURRENCY, queue.length) },
+    async () => {
+      while (queue.length > 0) {
+        const config = queue.shift();
+        if (!config) break;
+        const [direct, transitive, docs, reportPair] = await Promise.all([
+          readPackageVersionMap(config.path),
+          readTransitiveVersionMap(config.path),
+          loadWorkDocuments(config.slug).then((entries) =>
+            entries.filter(
+              (doc) => doc.status !== "resolved" && doc.status !== "wont-fix",
+            ),
           ),
-        ),
-        readLatestTwoStructuredReports(config.slug),
-      ]);
-      directDeps.set(config.slug, direct);
-      transitiveDeps.set(config.slug, transitive);
-      activeDocsByRepo.set(config.slug, docs);
-      reportPairsByRepo.set(config.slug, reportPair);
-    }
-  });
+          readLatestTwoStructuredReports(config.slug),
+        ]);
+        directDeps.set(config.slug, direct);
+        transitiveDeps.set(config.slug, transitive);
+        activeDocsByRepo.set(config.slug, docs);
+        reportPairsByRepo.set(config.slug, reportPair);
+      }
+    },
+  );
   await Promise.all(workers);
 
   const trendData = detectMetricTrendPatterns(reportPairsByRepo);
@@ -443,6 +447,41 @@ export async function runCrossRepoAnalysis(
       `${JSON.stringify(report, null, 2)}\n`,
       "utf8",
     );
+  }
+
+  const byRepo = new Map<string, SystemicPattern[]>();
+  for (const pattern of report.systemicPatterns) {
+    for (const slug of pattern.affectedRepos) {
+      const bucket = byRepo.get(slug) ?? [];
+      bucket.push(pattern);
+      byRepo.set(slug, bucket);
+    }
+  }
+
+  for (const [slug, patterns] of byRepo.entries()) {
+    if (patterns.length === 0) {
+      continue;
+    }
+    const top = patterns[0];
+    if (!top) {
+      continue;
+    }
+    try {
+      await dispatch({
+        type: "systemic-pattern",
+        slug,
+        timestamp: report.timestamp,
+        severity: top.severity,
+        summary: `${patterns.length} systemic cross-repo patterns detected for ${slug}.`,
+        details: {
+          topPattern: top.description,
+          affectedRepos: top.affectedRepos.join(", "),
+        },
+        dashboardUrl: "http://localhost:3333/portfolio",
+      });
+    } catch {
+      // Notifications are best-effort.
+    }
   }
 
   return report;

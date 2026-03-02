@@ -1,0 +1,29 @@
+{
+  "global": [
+    {
+      "type": "slack",
+      "events": ["escalation", "trust-revocation", "collection-failed"],
+      "minSeverity": "S2",
+      "config": {
+        "webhookUrl": "$WARDEN_SLACK_WEBHOOK_URL",
+        "mentionOnEscalation": "@here"
+      }
+    }
+  ],
+  "repos": {
+    "example-repo": [
+      {
+        "type": "email",
+        "events": ["*"],
+        "config": {
+          "recipients": ["eng@example.com"],
+          "schedule": "weekly",
+          "smtpHost": "$WARDEN_SMTP_HOST",
+          "smtpPort": 587,
+          "smtpUser": "$WARDEN_SMTP_USER",
+          "smtpPass": "$WARDEN_SMTP_PASS"
+        }
+      }
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import path from "node:path";
 import type { RepoConfig } from "../types/snapshot.js";
 import type { WorkDocument } from "../types/work.js";
 import { runCommand } from "../collectors/utils.js";
+import { dispatch } from "../notifications/dispatcher.js";
 import { createGithubClient } from "./client.js";
 
 function inferAgentName(doc: WorkDocument): string {
@@ -108,6 +109,25 @@ export async function pushBranchAndCreatePullRequest(params: {
     findingCode: params.doc.code,
     agent: inferAgentName(params.doc),
   });
+
+  try {
+    await dispatch({
+      type: "agent-pr-created",
+      slug: params.config.slug,
+      timestamp: new Date().toISOString(),
+      severity: params.doc.severity,
+      summary: `${inferAgentName(params.doc)} created draft PR #${pr.data.number}.`,
+      details: {
+        prNumber: pr.data.number,
+        prUrl: pr.data.html_url,
+        findingId: params.doc.findingId,
+        findingCode: params.doc.code,
+      },
+      dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(params.config.slug)}/agents`,
+    });
+  } catch {
+    // Notifications are best-effort.
+  }
 
   return {
     prUrl: pr.data.html_url,

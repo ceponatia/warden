@@ -18,6 +18,7 @@ import { collectGitStats } from "./collect-git-stats.js";
 import { collectImports } from "./collect-imports.js";
 import { collectRuntime } from "./collect-runtime.js";
 import { collectStaleness } from "./collect-staleness.js";
+import { dispatch } from "../notifications/dispatcher.js";
 
 export interface CollectorResults {
   gitStats: GitStatsSnapshot;
@@ -33,36 +34,55 @@ export interface CollectorResults {
 export async function runCollectors(
   config: RepoConfig,
 ): Promise<CollectorResults> {
-  const scopeRules = await loadScopeRules(config);
-  const gitStats = await collectGitStats(config, scopeRules);
-  const [
-    staleness,
-    debtMarkers,
-    complexity,
-    imports,
-    runtime,
-    coverage,
-    docStaleness,
-  ] = await Promise.all([
-    collectStaleness(config, scopeRules),
-    collectDebtMarkers(config, scopeRules),
-    collectComplexity(config, scopeRules),
-    collectImports(config, scopeRules),
-    collectRuntime(config, scopeRules),
-    collectCoverage(config, scopeRules, gitStats),
-    collectDocStaleness(config, scopeRules),
-  ]);
+  try {
+    const scopeRules = await loadScopeRules(config);
+    const gitStats = await collectGitStats(config, scopeRules);
+    const [
+      staleness,
+      debtMarkers,
+      complexity,
+      imports,
+      runtime,
+      coverage,
+      docStaleness,
+    ] = await Promise.all([
+      collectStaleness(config, scopeRules),
+      collectDebtMarkers(config, scopeRules),
+      collectComplexity(config, scopeRules),
+      collectImports(config, scopeRules),
+      collectRuntime(config, scopeRules),
+      collectCoverage(config, scopeRules, gitStats),
+      collectDocStaleness(config, scopeRules),
+    ]);
 
-  return {
-    gitStats,
-    staleness,
-    debtMarkers,
-    complexity,
-    imports,
-    runtime,
-    coverage,
-    docStaleness,
-  };
+    return {
+      gitStats,
+      staleness,
+      debtMarkers,
+      complexity,
+      imports,
+      runtime,
+      coverage,
+      docStaleness,
+    };
+  } catch (error: unknown) {
+    try {
+      await dispatch({
+        type: "collection-failed",
+        slug: config.slug,
+        timestamp: new Date().toISOString(),
+        severity: "S1",
+        summary: `Collection failed for ${config.slug}.`,
+        details: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(config.slug)}`,
+      });
+    } catch {
+      // Notifications are best-effort.
+    }
+    throw error;
+  }
 }
 
 export async function runBatch1Collectors(

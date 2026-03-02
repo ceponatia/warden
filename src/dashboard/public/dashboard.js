@@ -331,15 +331,19 @@
     }
     if (metricsParam) {
       const metricValues = metricsParam.split(",").filter(Boolean);
-      document.querySelectorAll('input[name="metric-filter"]').forEach(function (el) {
-        el.checked = metricValues.indexOf(el.value) >= 0;
-      });
+      document
+        .querySelectorAll('input[name="metric-filter"]')
+        .forEach(function (el) {
+          el.checked = metricValues.indexOf(el.value) >= 0;
+        });
     }
     if (severitiesParam) {
       const severityValues = severitiesParam.split(",").filter(Boolean);
-      document.querySelectorAll('input[name="severity-filter"]').forEach(function (el) {
-        el.checked = severityValues.indexOf(el.value) >= 0;
-      });
+      document
+        .querySelectorAll('input[name="severity-filter"]')
+        .forEach(function (el) {
+          el.checked = severityValues.indexOf(el.value) >= 0;
+        });
     }
 
     renderFindings();
@@ -395,11 +399,47 @@
     });
   }
 
+  function setupAgentsPage() {
+    const testButton = document.getElementById("test-notifications");
+    if (!(testButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    testButton.addEventListener("click", async function () {
+      testButton.disabled = true;
+      const originalText = testButton.textContent || "Test Notifications";
+      testButton.textContent = "Sending...";
+      try {
+        const payload = await postJson("/api/notify/test", { slug: slug });
+        const succeeded = Array.isArray(payload.results)
+          ? payload.results.filter(function (entry) {
+              return entry && entry.success && !entry.skipped;
+            }).length
+          : 0;
+        testButton.textContent = `Sent (${succeeded})`;
+        setTimeout(function () {
+          window.location.reload();
+        }, 700);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        testButton.textContent = `Failed: ${message}`;
+      } finally {
+        setTimeout(function () {
+          testButton.disabled = false;
+          testButton.textContent = originalText;
+        }, 2000);
+      }
+    });
+  }
+
   if (page === "repo") {
     setupRepoPage();
   }
   if (page === "work") {
     setupWorkPage();
+  }
+  if (page === "agents") {
+    setupAgentsPage();
   }
 
   window.addEventListener("pagehide", function () {

@@ -15,6 +15,7 @@ import {
   loadWorkDocuments,
   saveWorkDocument,
 } from "../work/manager.js";
+import { dispatch } from "../notifications/dispatcher.js";
 import type { CommandRunner } from "./command-runner.js";
 import type { DashboardWebSocketHub } from "./websocket.js";
 
@@ -280,6 +281,41 @@ function registerFindingsRoute(router: Router): void {
   });
 }
 
+function registerNotificationRoutes(router: Router): void {
+  router.post("/notify/test", async (req, res) => {
+    const repoSlug =
+      typeof req.body?.slug === "string" ? req.body.slug.trim() : "";
+    if (!repoSlug) {
+      res.status(400).json({ error: "Missing slug in request body." });
+      return;
+    }
+
+    const configs = await loadRepoConfigs();
+    if (!configs.some((repo) => repo.slug === repoSlug)) {
+      res.status(404).json({ error: `Unknown repository slug: ${repoSlug}` });
+      return;
+    }
+
+    const results = await dispatch(
+      {
+        type: "analysis-complete",
+        slug: repoSlug,
+        timestamp: new Date().toISOString(),
+        severity: "S3",
+        summary: "Dashboard test notification",
+        details: {
+          source: "dashboard",
+          action: "manual-test",
+        },
+        dashboardUrl: `http://localhost:3333/repo/${encodeURIComponent(repoSlug)}`,
+      },
+      { force: true },
+    );
+
+    res.json({ ok: true, results });
+  });
+}
+
 export function createDashboardApiRouter(
   commandRunner: CommandRunner,
   wsHub: DashboardWebSocketHub,
@@ -288,5 +324,6 @@ export function createDashboardApiRouter(
   registerCommandRoutes(router, commandRunner);
   registerWorkRoutes(router, wsHub);
   registerFindingsRoute(router);
+  registerNotificationRoutes(router);
   return router;
 }
