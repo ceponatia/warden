@@ -68,8 +68,19 @@ export class TrajectoryStore {
     return validateTrajectoryInvariants(graph);
   }
 
-  async patch(actor: string, operations: PatchOperation[]): Promise<void> {
+  async patch(
+    actor: string,
+    operations: PatchOperation[],
+    expectedRevision?: number,
+  ): Promise<void> {
     const graph = await this.load();
+
+    if (expectedRevision !== undefined && graph.meta.revision !== expectedRevision) {
+      throw new Error(
+        `Concurrency conflict: expected revision ${expectedRevision} but found ${graph.meta.revision}`,
+      );
+    }
+
     const now = new Date().toISOString();
 
     for (const op of operations) {
@@ -105,6 +116,7 @@ export class TrajectoryStore {
       }
     }
 
+    const oldRevision = graph.meta.revision;
     graph.meta.revision += 1;
     graph.meta.updatedAt = now;
 
@@ -116,6 +128,7 @@ export class TrajectoryStore {
       type: 'patch',
       at: now,
       actor,
+      expectedRevision: oldRevision,
       payload: { operations },
     });
   }

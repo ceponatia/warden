@@ -382,10 +382,11 @@ function registerTrajectoryTools(server: McpServer): void {
         repo: z.string().describe("Repo slug"),
         actor: z.string().optional().describe("Actor performing the patch"),
         operations: z.array(z.any()).describe("List of patch operations"),
+        expectedRevision: z.number().optional().describe("Optimistic concurrency check: fail if graph has moved past this revision"),
       }),
     },
-    async ({ repo, actor, operations }) => ({
-      content: [{ type: "text", text: await toolTrajectoryPatch(repo, actor, operations) }],
+    async ({ repo, actor, operations, expectedRevision }) => ({
+      content: [{ type: "text", text: await toolTrajectoryPatch(repo, actor, operations, expectedRevision) }],
     }),
   );
 

@@ -12,6 +12,7 @@ import type {
   RuntimeSnapshot,
   StalenessSnapshot,
 } from "../types/snapshot.js";
+import type { TrajectoryGraph } from "../types/trajectory.js";
 
 function renderList(items: string[]): string {
   if (items.length === 0) {
@@ -292,6 +293,39 @@ ${renderList(supplementalLines.runtimeCoverage)}
 `;
 }
 
+function toTrajectoryLines(graph: TrajectoryGraph | null): {
+  blocked: string[];
+  stale: string[];
+} {
+  if (!graph) return { blocked: [], stale: [] };
+  const blocked = graph.nodes
+    .filter((n) => n.status === "blocked")
+    .map((n) => `${n.id}: ${n.title}`);
+  return { blocked, stale: [] }; // Staleness is handled by the overall section
+}
+
+function renderTrajectorySection(
+  graph: TrajectoryGraph | null,
+  config: RepoConfig,
+): string {
+  if (!graph) return "";
+  const { blocked } = toTrajectoryLines(graph);
+  const updatedAt = new Date(graph.meta.updatedAt);
+  const now = new Date();
+  const daysOld = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24);
+  const staleThreshold = config.thresholds.staleDays || 10;
+
+  return `## Trajectory health (M10)
+
+### [WD-M10-001] Blocked nodes
+${renderList(blocked)}
+
+### [WD-M10-002] Graph status
+- Last updated: ${graph.meta.updatedAt} (${Math.floor(daysOld)} days ago)
+- Status: ${daysOld >= staleThreshold ? "STALE" : "OK"} (threshold: ${staleThreshold}d)
+`;
+}
+
 export function renderTemplateReport(
   config: RepoConfig,
   gitStats: GitStatsSnapshot,
@@ -302,6 +336,7 @@ export function renderTemplateReport(
   runtime: RuntimeSnapshot | null,
   coverage: CoverageSnapshot | null,
   docStaleness: DocStalenessSnapshot | null,
+  trajectory: TrajectoryGraph | null = null,
 ): string {
   const window7d = gitStats.windows["7d"];
   const stalenessLines = buildStalenessLines(staleness);
@@ -362,6 +397,8 @@ ${renderStalenessDebtImportRuntimeSection(
 )}
 
 ${renderCoverageAndDocsSection(config, coverageLines, docStalenessLines)}
+
+${renderTrajectorySection(trajectory, config)}
 
 ---
 Collected at ${gitStats.collectedAt} | Thresholds: stale=${config.thresholds.staleDays}d, doc-stale=${config.thresholds.docStaleDays}d, churn=${config.thresholds.highChurnEdits}, growth=${config.thresholds.growthMultiplier}x, coverage=${config.thresholds.lowCoveragePct}%`;

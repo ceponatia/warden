@@ -43,8 +43,19 @@ export async function runTrajectoryCommand(args: string[]): Promise<void> {
       console.log(`Exported trajectory from repo "${repoSlug}" to "${toPath}"`);
       break;
     }
+    case "patch": {
+      const opsPath = getFlagValue(args, "--ops");
+      if (!opsPath) throw new Error("Missing --ops <path> to patch operations JSON");
+      const expectedRevision = getFlagValue(args, "--rev");
+      
+      const raw = await fs.readFile(opsPath, 'utf-8');
+      const ops = JSON.parse(raw);
+      await store.patch("cli", ops, expectedRevision ? Number(expectedRevision) : undefined);
+      console.log(`Applied patch to repo "${repoSlug}"`);
+      break;
+    }
     default:
-      throw new Error(`Unknown trajectory action: ${action}. Usage: warden trajectory <init|validate|import|export> --repo <slug>`);
+      throw new Error(`Unknown trajectory action: ${action}. Usage: warden trajectory <init|validate|import|export|patch> --repo <slug>`);
   }
 }
 

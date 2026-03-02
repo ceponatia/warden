@@ -102,8 +102,6 @@ describe('TrajectoryStore', () => {
           title: 'Node 1',
           status: 'opened',
           type: 'task',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
           findingRefs: [],
           workRefs: [],
           tags: [],
@@ -117,8 +115,6 @@ describe('TrajectoryStore', () => {
           title: 'Node 2',
           status: 'opened',
           type: 'task',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
           findingRefs: [],
           workRefs: [],
           tags: [],
@@ -139,11 +135,10 @@ describe('TrajectoryStore', () => {
 
   it('should detect cycles in patch', async () => {
     await store.init();
-    const now = new Date().toISOString();
     
     await store.patch('test-actor', [
-      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', createdAt: now, updatedAt: now, findingRefs: [], workRefs: [], tags: [], metadata: {} } },
-      { type: 'addNode', node: { id: 'n2', title: 'N2', status: 'opened', type: 'task', createdAt: now, updatedAt: now, findingRefs: [], workRefs: [], tags: [], metadata: {} } },
+      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], metadata: {} } },
+      { type: 'addNode', node: { id: 'n2', title: 'N2', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], metadata: {} } },
       { type: 'addEdge', edge: { from: 'n1', to: 'n2', kind: 'blocks', metadata: {} } }
     ]);
 
@@ -151,5 +146,18 @@ describe('TrajectoryStore', () => {
       { type: 'addEdge', edge: { from: 'n2', to: 'n1', kind: 'blocks', metadata: {} } }
     ];
     await expect(store.patch('test-actor', cyclePatch)).rejects.toThrow(/Cycle detected/);
+  });
+
+  it('should enforce optimistic concurrency', async () => {
+    await store.init();
+    await store.patch('actor-1', [
+      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], metadata: {} } }
+    ], 0);
+
+    // This should fail because revision is now 1
+    await expect(store.patch('actor-2', [], 0)).rejects.toThrow(/Concurrency conflict/);
+    
+    // This should succeed
+    await expect(store.patch('actor-2', [], 1)).resolves.toBeUndefined();
   });
 });

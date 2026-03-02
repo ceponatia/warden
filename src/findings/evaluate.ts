@@ -387,6 +387,11 @@ function appendTrajectoryHealth(
 
   const staleThreshold = config.thresholds.staleDays || 10;
   const updatedAt = new Date(bundle.trajectory.meta.updatedAt);
+  
+  if (Number.isNaN(updatedAt.getTime())) {
+    return;
+  }
+
   const now = new Date();
   const daysOld = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24);
 

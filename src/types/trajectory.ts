@@ -17,6 +17,12 @@ export const TrajectoryNodeSchema = z.object({
 });
 export type TrajectoryNode = z.infer<typeof TrajectoryNodeSchema>;
 
+export const NewTrajectoryNodeSchema = TrajectoryNodeSchema.omit({
+  createdAt: true,
+  updatedAt: true,
+});
+export type NewTrajectoryNode = z.infer<typeof NewTrajectoryNodeSchema>;
+
 export const TrajectoryEdgeSchema = z.object({
   from: z.string(),
   to: z.string(),
@@ -53,7 +59,7 @@ export const TrajectoryEventSchema = z.object({
 export type TrajectoryEvent = z.infer<typeof TrajectoryEventSchema>;
 
 export type PatchOperation =
-  | { type: 'addNode'; node: TrajectoryNode }
+  | { type: 'addNode'; node: NewTrajectoryNode }
   | { type: 'updateNode'; id: string; updates: Partial<TrajectoryNode> }
   | { type: 'addEdge'; edge: TrajectoryEdge }
   | { type: 'deleteEdge'; from: string; to: string }

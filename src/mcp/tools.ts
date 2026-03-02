@@ -278,13 +278,14 @@ export async function toolTrajectoryPatch(
   slug: string | undefined,
   actor: string | undefined,
   operations: PatchOperation[] | undefined,
+  expectedRevision?: number,
 ): Promise<string> {
   const repoSlug = ensureSlug(slug);
   if (!operations || !Array.isArray(operations)) {
     throw new Error("Missing or invalid operations array");
   }
   const store = new TrajectoryStore(repoSlug);
-  await store.patch(actor || "mcp-tool", operations);
+  await store.patch(actor || "mcp-tool", operations, expectedRevision);
   return `Trajectory patched for ${repoSlug}`;
 }
 
