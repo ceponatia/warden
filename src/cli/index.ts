@@ -33,7 +33,7 @@ function printHelp(): void {
   process.stdout.write(`  warden hook install [--repo <slug>]\n`);
   process.stdout.write(`  warden hook uninstall [--repo <slug>]\n`);
   process.stdout.write(`  warden hook tick --repo <slug>\n`);
-  process.stdout.write(`  warden trajectory <init|validate> [--repo <slug>]\n`);
+  process.stdout.write(`  warden trajectory <init|validate|import|export> [--repo <slug>] [--from <path>] [--to <path>]\n`);
   process.stdout.write(`  warden github auth [--token <token>]\n`);
   process.stdout.write(`  warden webhook <start|stop>\n`);
   process.stdout.write(
