@@ -15,6 +15,7 @@ import { runReportCommand } from "./commands/report.js";
 import { runWebhookCommand } from "./commands/webhook.js";
 import { runWikiCommand } from "./commands/wiki.js";
 import { runWorkCommand } from "./commands/work.js";
+import { runTrajectoryCommand } from "./commands/trajectory.js";
 
 function printHelp(): void {
   process.stdout.write(`Warden CLI\n\n`);
@@ -32,6 +33,7 @@ function printHelp(): void {
   process.stdout.write(`  warden hook install [--repo <slug>]\n`);
   process.stdout.write(`  warden hook uninstall [--repo <slug>]\n`);
   process.stdout.write(`  warden hook tick --repo <slug>\n`);
+  process.stdout.write(`  warden trajectory <init|validate> [--repo <slug>]\n`);
   process.stdout.write(`  warden github auth [--token <token>]\n`);
   process.stdout.write(`  warden webhook <start|stop>\n`);
   process.stdout.write(
@@ -138,6 +140,9 @@ function createCommandHandlers(): Record<string, CommandHandler> {
     },
     work: async (rest: string[]) => {
       await runWorkCommand(rest);
+    },
+    trajectory: async (rest: string[]) => {
+      await runTrajectoryCommand(rest);
     },
     mcp: async (rest: string[]) => {
       const transportArg = getFlagValue(rest, "--transport");
