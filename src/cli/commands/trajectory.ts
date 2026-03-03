@@ -1,13 +1,14 @@
 import fs from 'node:fs/promises';
 import { TrajectoryStore } from "../../work/trajectory-store.js";
 import { parseMermaidTrajectory, exportMermaidTrajectory } from "../../work/trajectory-vizvibe.js";
+import { syncTrajectoryWithPullRequest } from "../../work/trajectory-sync.js";
 
 export async function runTrajectoryCommand(args: string[]): Promise<void> {
   const action = args[0];
   const repoSlug = getFlagValue(args, "--repo");
 
   if (!repoSlug) {
-    throw new Error("Missing --repo slug. Usage: warden trajectory <init|validate|import|export> --repo <slug>");
+    throw new Error("Missing --repo slug. Usage: warden trajectory <init|validate|import|export|patch|sync-pr> --repo <slug>");
   }
 
   const store = new TrajectoryStore(repoSlug);
@@ -74,8 +75,25 @@ export async function runTrajectoryCommand(args: string[]): Promise<void> {
       console.log(`Applied patch to repo "${repoSlug}"`);
       break;
     }
+    case "sync-pr": {
+      const prRaw = getFlagValue(args, "--pr");
+      const githubOwner = getFlagValue(args, "--owner") || process.env.GITHUB_REPOSITORY_OWNER;
+      const githubRepo = getFlagValue(args, "--repo-name") || process.env.GITHUB_REPOSITORY_NAME;
+
+      if (!prRaw || !githubOwner || !githubRepo) {
+        throw new Error("Missing arguments. Usage: warden trajectory sync-pr --repo <slug> --pr <number> --owner <owner> --repo-name <name>");
+      }
+
+      const prNumber = Number(prRaw);
+      if (Number.isNaN(prNumber)) {
+        throw new Error("Invalid PR number");
+      }
+
+      await syncTrajectoryWithPullRequest(githubOwner, githubRepo, prNumber, repoSlug);
+      break;
+    }
     default:
-      throw new Error(`Unknown trajectory action: ${action}. Usage: warden trajectory <init|validate|import|export|patch> --repo <slug>`);
+      throw new Error(`Unknown trajectory action: ${action}. Usage: warden trajectory <init|validate|import|export|patch|sync-pr> --repo <slug>`);
   }
 }
 
