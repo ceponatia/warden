@@ -10,10 +10,10 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
   const nodeRegex = /^\s*([a-zA-Z0-9_-]+)\("([^"]+)"\)/;
   // Simple regex for Mermaid edges: id1 --> id2 or id1 -.-> id2
   const edgeRegex = /^\s*([a-zA-Z0-9_-]+)\s*(-{2,}|-\.{1,}-)>\s*([a-zA-Z0-9_-]+)/;
-  // Metadata comment: %% @id [status, type]
+  // Metadata comment: %% @id [status, type, date, author]
   const metaRegex = /%%\s*@([a-zA-Z0-9_-]+)\s*\[([^\]]+)\]/;
 
-  const metaMap = new Map<string, { status: TrajectoryNodeStatus; type: string }>();
+  const metaMap = new Map<string, { status: TrajectoryNodeStatus; type: string; date?: string; author?: string }>();
 
   for (const line of lines) {
     const metaMatch = line.match(metaRegex);
@@ -22,6 +22,8 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
       metaMap.set(metaMatch[1], {
         type: parts[0] || 'task',
         status: (parts[1] === 'closed' ? 'closed' : 'opened') as TrajectoryNodeStatus,
+        date: parts[2],
+        author: parts[3],
       });
       continue;
     }
@@ -32,17 +34,19 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
       const title = nodeMatch[2].replace(/<br\/><sub>.*<\/sub>/g, '').trim();
       const meta = metaMap.get(id);
       
+      const nodeDate = meta?.date ? `${meta.date}T00:00:00.000Z` : now;
+
       nodes.push({
         id,
         title,
         status: meta?.status || 'opened',
         type: meta?.type || 'task',
-        createdAt: now,
-        updatedAt: now,
+        createdAt: nodeDate,
+        updatedAt: nodeDate,
         findingRefs: [],
         workRefs: [],
         tags: [],
-        metadata: {},
+        metadata: meta?.author ? { author: meta.author } : {},
       });
       continue;
     }
@@ -75,7 +79,9 @@ export function exportMermaidTrajectory(graph: TrajectoryGraph): string {
   
   // 1. Comments with metadata
   for (const node of graph.nodes) {
-    mmd += `    %% @${node.id} [${node.type}, ${node.status}]\n`;
+    const dateStr = node.updatedAt.slice(0, 10);
+    const author = node.metadata?.author || 'system';
+    mmd += `    %% @${node.id} [${node.type}, ${node.status}, ${dateStr}, ${author}]\n`;
   }
   
   mmd += '\n';
