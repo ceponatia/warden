@@ -27,27 +27,12 @@ export async function syncTrajectoryWithPullRequest(
     return;
   }
 
-  // 2. Load current trajectory state
+  // 2. Load current trajectory state and agent instructions
   const graph = await store.load();
+  const agentDocPath = path.join(process.cwd(), ".github", "agents", "trajectory.agent.md");
+  const systemPrompt = await fs.readFile(agentDocPath, "utf-8");
 
-  // 3. Formulate the prompt
-  const systemPrompt = `You are a strict, deterministic Trajectory Management Agent.
-Your job is to read a merged Pull Request and the current Project Trajectory Graph, and output an array of JSON patch operations to update the graph.
-
-Guidelines:
-- If the PR completes an existing 'opened' node, output an 'updateNode' operation to set its status to 'closed'.
-- If the PR introduces a new capability not on the graph, use 'addNode' to add it as 'closed', and 'addEdge' to connect it to the relevant parent.
-- If the PR mentions future work or TODOs, use 'addNode' to create an 'opened' node, and 'addEdge' to connect it to the newly closed work.
-- DO NOT hallucinate nodes.
-- Keep node titles under 30 chars and descriptions concise.
-- Output ONLY a JSON array of PatchOperation objects matching this TypeScript type:
-
-type PatchOperation =
-  | { type: 'addNode'; node: { id: string, title: string, status: 'opened'|'closed', type: string, metadata: any } }
-  | { type: 'updateNode'; id: string; updates: any }
-  | { type: 'addEdge'; edge: { from: string, to: string, kind: string, metadata: any } }
-`;
-
+  // 3. Formulate the user prompt
   const userPrompt = `
 CURRENT TRAJECTORY GRAPH:
 ${JSON.stringify(graph.nodes.map(n => ({ id: n.id, title: n.title, status: n.status })), null, 2)}
@@ -59,7 +44,7 @@ ${pr.body || "No description provided."}
 
 Return a valid JSON array of PatchOperations to update the trajectory graph based on this PR. Return ONLY JSON.`;
 
-  // 4. Call the cheap/fast model
+  // 4. Call the AI Provider (defaults to GitHub Models if no env var is set)
   console.log(`Analyzing PR #${prNumber} with AI Provider...`);
   const responseText = await callProvider({
     systemPrompt,
