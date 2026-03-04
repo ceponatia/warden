@@ -33,7 +33,7 @@ export function resolveProviderConfig(): ProviderConfig {
         "OPENAI_API_KEY environment variable is required for the openai provider.",
       );
     }
-    const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-5.3-codex";
+    const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-4o";
     return { provider, model, apiKey };
   }
 
@@ -44,18 +44,18 @@ export function resolveProviderConfig(): ProviderConfig {
         "ANTHROPIC_API_KEY environment variable is required for the anthropic provider.",
       );
     }
-    const model = process.env["WARDEN_AI_MODEL"] ?? "claude-4-6-opus";
+    const model = process.env["WARDEN_AI_MODEL"] ?? "claude-3-5-sonnet-20241022";
     return { provider, model, apiKey };
   }
 
-  // GitHub Models provider (Pro tier)
+  // GitHub Models provider (free tier)
   const apiKey = process.env["GITHUB_TOKEN"] ?? process.env["WARDEN_GITHUB_TOKEN"];
   if (!apiKey) {
     throw new Error(
       "GITHUB_TOKEN or WARDEN_GITHUB_TOKEN is required for the github provider.",
     );
   }
-  const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-5.3-codex";
+  const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-4o-mini";
   return { provider, model, apiKey };
 }
 
