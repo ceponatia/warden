@@ -79,9 +79,14 @@ async function startWebhook(): Promise<void> {
     slug: string,
     fn: () => Promise<void>,
   ): Promise<void> {
-    const prev = (slugQueues.get(slug) ?? Promise.resolve()).catch(() => undefined);
+    const prev = (slugQueues.get(slug) ?? Promise.resolve()).catch(
+      () => undefined,
+    );
     const next = prev.then(() => fn());
-    slugQueues.set(slug, next.catch(() => undefined));
+    slugQueues.set(
+      slug,
+      next.catch(() => undefined),
+    );
     return next;
   }
 
@@ -96,11 +101,23 @@ async function startWebhook(): Promise<void> {
       await serializeBySlug(ctx.slug, async () => {
         await runCollectCommand(ctx.slug);
         await runAnalyzeCommand(ctx.slug);
-        await syncTrajectoryWithPullRequest(ctx.owner, ctx.repo, ctx.prNumber, ctx.slug);
+        await syncTrajectoryWithPullRequest(
+          ctx.owner,
+          ctx.repo,
+          ctx.prNumber,
+          ctx.slug,
+        );
         try {
-          await postTrajectoryCommentOnPr(ctx.owner, ctx.repo, ctx.prNumber, ctx.slug, {
-            includeLocalImpact: true,
-          });
+          await postTrajectoryCommentOnPr(
+            ctx.owner,
+            ctx.repo,
+            ctx.prNumber,
+            ctx.slug,
+            {
+              includeLocalImpact: true,
+              triggeredBy: "webhook",
+            },
+          );
         } catch (error) {
           console.error("Trajectory comment failed on PR merge:", error);
         }
@@ -108,9 +125,16 @@ async function startWebhook(): Promise<void> {
     },
     onPullRequestOpened: async (ctx) => {
       try {
-        await postTrajectoryCommentOnPr(ctx.owner, ctx.repo, ctx.prNumber, ctx.slug, {
-          includeLocalImpact: false,
-        });
+        await postTrajectoryCommentOnPr(
+          ctx.owner,
+          ctx.repo,
+          ctx.prNumber,
+          ctx.slug,
+          {
+            includeLocalImpact: false,
+            triggeredBy: "webhook",
+          },
+        );
       } catch (error) {
         console.error("Trajectory comment failed on PR open:", error);
       }

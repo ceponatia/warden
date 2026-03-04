@@ -4,6 +4,7 @@ import type {
   RepoConfig,
   RepoRetention,
   RepoThresholds,
+  TrajectoryConfig,
 } from "../types/snapshot.js";
 import type { RepoSuppression } from "../types/findings.js";
 
@@ -200,6 +201,23 @@ function normalizeScheduler(
   };
 }
 
+function normalizeTrajectoryConfig(
+  rawTrajectory: TrajectoryConfig | undefined,
+): TrajectoryConfig | undefined {
+  if (!rawTrajectory) {
+    return undefined;
+  }
+
+  return {
+    aiEnrichment: rawTrajectory.aiEnrichment === true,
+    diffDenyPatterns: Array.isArray(rawTrajectory.diffDenyPatterns)
+      ? rawTrajectory.diffDenyPatterns.filter(
+          (pattern): pattern is string => typeof pattern === "string",
+        )
+      : undefined,
+  };
+}
+
 export function normalizeRepoConfig(value: unknown): RepoConfig {
   if (typeof value !== "object" || value === null) {
     throw new Error("Invalid repo config entry");
@@ -231,6 +249,7 @@ export function normalizeRepoConfig(value: unknown): RepoConfig {
     retention,
     commitThreshold,
     scheduler: normalizeScheduler(raw.scheduler),
+    trajectory: normalizeTrajectoryConfig(raw.trajectory),
     suppressions: normalizeSuppressions(raw.suppressions),
   };
 }
