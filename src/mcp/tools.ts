@@ -29,12 +29,12 @@ export async function ensureSlug(slug: string | undefined): Promise<string> {
   }
 
   if (!VALID_SLUG.test(slug)) {
-    throw new Error(`Invalid repo slug: ${slug}`);
+    throw new Error(`Invalid repo slug: ${JSON.stringify(slug)}`);
   }
 
   const repos = await loadRepoConfigs();
   if (!repos.some((repo) => repo.slug === slug)) {
-    throw new Error(`Unknown repo slug: ${slug}`);
+    throw new Error(`Unknown repo slug: ${JSON.stringify(slug)}`);
   }
 
   return slug;
