@@ -6,6 +6,7 @@ import {
 import { renderTrajectoryComment } from "./trajectory-comment-renderer.js";
 import { upsertTrajectoryComment } from "../github/comment.js";
 import { fetchPrDetails, fetchPrDiff } from "../github/pr.js";
+import { resolveAuthenticatedGithubLogin } from "../github/client.js";
 
 import { resolveProviderConfig } from "../agents/provider.js";
 
@@ -55,5 +56,8 @@ export async function postTrajectoryCommentOnPr(
   });
 
   // 4. Post/update comment
-  await upsertTrajectoryComment(owner, repo, prNumber, body);
+  const expectedBotLogin = await resolveAuthenticatedGithubLogin();
+  await upsertTrajectoryComment(owner, repo, prNumber, body, {
+    expectedBotLogin,
+  });
 }
