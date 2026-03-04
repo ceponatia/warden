@@ -1,3 +1,5 @@
+// Rationale: runner orchestration intentionally lives in one module to keep end-to-end analysis flow and side effects traceable.
+/* eslint-disable max-lines */
 import { loadAllowlist } from "../config/allowlist.js";
 import { loadRepoConfigs } from "../config/loader.js";
 import { evaluateFindings } from "../findings/evaluate.js";
@@ -467,6 +469,8 @@ function findResolvedCodes(
     .slice(0, 5);
 }
 
+// Rationale: this orchestrator composes snapshot loading, work sync, notifications, autonomy checks, and AI call sequencing.
+// eslint-disable-next-line max-lines-per-function
 export async function runAnalysis(
   config: RepoConfig,
   options?: AnalysisOptions,

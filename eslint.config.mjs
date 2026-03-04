@@ -26,4 +26,11 @@ export default [
       ],
     },
   },
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "max-lines-per-function": "off",
+      "max-lines": "off",
+    },
+  },
 ];

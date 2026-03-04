@@ -364,6 +364,8 @@ function buildRecommendations(report: CrossRepoReport): string[] {
   return recommendations;
 }
 
+// Rationale: cross-repo analysis runs a full pipeline (load, aggregate, score, sort, persist) as one cohesive operation.
+// eslint-disable-next-line max-lines-per-function
 export async function runCrossRepoAnalysis(
   configs: RepoConfig[],
   options: { persist?: boolean } = {},

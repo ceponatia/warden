@@ -1,3 +1,5 @@
+// Rationale: dashboard route registration is intentionally centralized for discoverability of all HTTP endpoints.
+/* eslint-disable max-lines */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Express, Request, Response } from "express";
@@ -477,7 +479,10 @@ export function registerDashboardRoutes(app: Express): void {
     try {
       const graph = await store.load();
       const mmd = exportMermaidTrajectory(graph);
-      res.type("html").send(renderPage(`Trajectory: ${slug}`, `
+      res.type("html").send(
+        renderPage(
+          `Trajectory: ${slug}`,
+          `
         <div class="card">
           <h2>Work Trajectory</h2>
           <pre class="mermaid">${escapeHtml(mmd)}</pre>
@@ -486,7 +491,10 @@ export function registerDashboardRoutes(app: Express): void {
           import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
           mermaid.initialize({ startOnLoad: true });
         </script>
-      `, { slug }));
+      `,
+          { slug },
+        ),
+      );
     } catch (error) {
       res.status(404).send((error as Error).message);
     }

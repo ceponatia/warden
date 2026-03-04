@@ -2,30 +2,71 @@ import { createGithubClient } from "./client.js";
 
 const WARDEN_COMMENT_MARKER = "<!-- warden-trajectory -->";
 
+function isRecoverableUpdateError(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  return status === 403 || status === 404;
+}
+
 export async function upsertTrajectoryComment(
   owner: string,
   repo: string,
   prNumber: number,
   body: string,
+  options?: { expectedBotLogin?: string },
 ): Promise<{ commentId: number; created: boolean }> {
   const client = await createGithubClient();
   const markedBody = `${WARDEN_COMMENT_MARKER}\n${body}`;
 
   // Find existing Warden comment
   const { data: comments } = await client.issues.listComments({
-    owner, repo, issue_number: prNumber, per_page: 100,
+    owner,
+    repo,
+    issue_number: prNumber,
+    per_page: 100,
   });
-  const existing = comments.find(c => c.body?.includes(WARDEN_COMMENT_MARKER));
+  if (!options?.expectedBotLogin) {
+    console.warn(
+      "expectedBotLogin is not set; skipping existing comment lookup to prevent marker spoofing. A new comment will be created.",
+    );
+  }
+
+  const existing = options?.expectedBotLogin
+    ? comments.find(
+        (comment) =>
+          comment.body?.includes(WARDEN_COMMENT_MARKER) &&
+          comment.user?.login?.toLowerCase() ===
+            options.expectedBotLogin!.toLowerCase(),
+      )
+    : undefined;
 
   if (existing) {
-    await client.issues.updateComment({
-      owner, repo, comment_id: existing.id, body: markedBody,
-    });
-    return { commentId: existing.id, created: false };
+    try {
+      await client.issues.updateComment({
+        owner,
+        repo,
+        comment_id: existing.id,
+        body: markedBody,
+      });
+      return { commentId: existing.id, created: false };
+    } catch (error) {
+      if (!isRecoverableUpdateError(error)) {
+        throw error;
+      }
+
+      const status = (error as { status?: number })?.status;
+      const message = (error as { message?: string })?.message;
+      console.warn(
+        `Could not update existing trajectory comment (id: ${existing.id}), creating new one. Status: ${status ?? "unknown"}, message: ${message ?? "n/a"}.`,
+        error,
+      );
+    }
   }
 
   const { data: created } = await client.issues.createComment({
-    owner, repo, issue_number: prNumber, body: markedBody,
+    owner,
+    repo,
+    issue_number: prNumber,
+    body: markedBody,
   });
   return { commentId: created.id, created: true };
 }

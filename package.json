@@ -10,7 +10,8 @@
   },
   "scripts": {
     "warden": "tsx src/cli/index.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json && echo \"typecheck OK\"",
+    "typecheck": "pnpm run typecheck:root && pnpm --filter warden-vscode run typecheck && pnpm --filter @aspect/warden-connector run typecheck && echo \"typecheck OK\"",
+    "typecheck:root": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",

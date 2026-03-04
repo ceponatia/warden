@@ -33,7 +33,11 @@
 				"pattern": "packages/*"
 			},
 		],
-		"markdownlint.configFile": "markdownlint.json",
+		// This makes TS Server compute diagnostics across the project,
+		// not just currently-open files.
+		"js/ts.tsserver.experimental.enableProjectDiagnostics": true,
+		// Optional: reduces load in big repos
+		"js/ts.tsserver.maxTsServerMemory": 4096,
 	},
 	"tasks": {
 		"version": "2.0.0",
