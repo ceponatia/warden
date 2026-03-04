@@ -2,17 +2,6 @@ import { createGithubClient } from "./client.js";
 
 const WARDEN_COMMENT_MARKER = "<!-- warden-trajectory -->";
 
-function matchesExpectedAuthor(
-  login: string | undefined,
-  expectedBotLogin: string | undefined,
-): boolean {
-  if (!expectedBotLogin) {
-    return true;
-  }
-
-  return login?.toLowerCase() === expectedBotLogin.toLowerCase();
-}
-
 function isRecoverableUpdateError(error: unknown): boolean {
   const status = (error as { status?: number })?.status;
   return status === 403 || status === 404;
@@ -37,15 +26,18 @@ export async function upsertTrajectoryComment(
   });
   if (!options?.expectedBotLogin) {
     console.warn(
-      "Trajectory comment upsert is using marker-only lookup because expectedBotLogin is not set.",
+      "expectedBotLogin is not set; skipping existing comment lookup to prevent marker spoofing. A new comment will be created.",
     );
   }
 
-  const existing = comments.find(
-    (comment) =>
-      comment.body?.includes(WARDEN_COMMENT_MARKER) &&
-      matchesExpectedAuthor(comment.user?.login, options?.expectedBotLogin),
-  );
+  const existing = options?.expectedBotLogin
+    ? comments.find(
+        (comment) =>
+          comment.body?.includes(WARDEN_COMMENT_MARKER) &&
+          comment.user?.login?.toLowerCase() ===
+            options.expectedBotLogin!.toLowerCase(),
+      )
+    : undefined;
 
   if (existing) {
     try {
