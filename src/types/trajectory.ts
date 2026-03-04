@@ -70,3 +70,28 @@ export type PatchOperation =
   | { type: 'deleteEdge'; from: string; to: string }
   | { type: 'deleteNode'; id: string };
 
+export const PatchOperationSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('addNode'),
+    node: NewTrajectoryNodeSchema,
+  }),
+  z.object({
+    type: z.literal('updateNode'),
+    id: z.string(),
+    updates: TrajectoryNodeSchema.partial().omit({ id: true }),
+  }),
+  z.object({
+    type: z.literal('addEdge'),
+    edge: TrajectoryEdgeSchema,
+  }),
+  z.object({
+    type: z.literal('deleteEdge'),
+    from: z.string(),
+    to: z.string(),
+  }),
+  z.object({
+    type: z.literal('deleteNode'),
+    id: z.string(),
+  }),
+]);
+
