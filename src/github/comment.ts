@@ -61,8 +61,11 @@ export async function upsertTrajectoryComment(
         throw error;
       }
 
+      const status = (error as { status?: number })?.status;
+      const message = (error as { message?: string })?.message;
       console.warn(
-        `Could not update existing trajectory comment (id: ${existing.id}), creating new one.`,
+        `Could not update existing trajectory comment (id: ${existing.id}), creating new one. Status: ${status ?? "unknown"}, message: ${message ?? "n/a"}.`,
+        error,
       );
     }
   }
