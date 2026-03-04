@@ -12,3 +12,5 @@ package-lock.json
 .markdownlint-cli2.jsonc
 coverage/
 vitest.config.ts.timestamp-*
+.omc/
+.audit-*/
