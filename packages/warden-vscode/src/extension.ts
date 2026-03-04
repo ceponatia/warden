@@ -214,7 +214,8 @@ async function createTrajectoryFile(workspaceRoot: vscode.Uri) {
  */
 async function setupCursorRules(workspaceRoot: vscode.Uri) {
     const appName = vscode.env.appName.toLowerCase();
-    const appHost = (vscode.env as any).appHost?.toLowerCase() || '';
+    const appHost =
+        ((vscode.env as unknown as { appHost?: string }).appHost ?? "").toLowerCase();
     const uriScheme = vscode.env.uriScheme?.toLowerCase() || '';
     
     // Check if running in Cursor

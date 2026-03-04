@@ -21,9 +21,20 @@ import { parseMermaidTrajectory, exportMermaidTrajectory } from "../work/traject
 import type { PatchOperation } from "../types/trajectory.js";
 import { postTrajectoryCommentOnPr } from "../work/trajectory-comment.js";
 
-function ensureSlug(slug: string | undefined): string {
+const VALID_SLUG = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
+
+export async function ensureSlug(slug: string | undefined): Promise<string> {
   if (!slug || slug.trim().length === 0) {
     throw new Error("Missing repo slug");
+  }
+
+  if (!VALID_SLUG.test(slug)) {
+    throw new Error(`Invalid repo slug: ${JSON.stringify(slug)}`);
+  }
+
+  const repos = await loadRepoConfigs();
+  if (!repos.some((repo) => repo.slug === slug)) {
+    throw new Error(`Unknown repo slug: ${JSON.stringify(slug)}`);
   }
 
   return slug;
@@ -64,19 +75,19 @@ export async function toolListRepos(): Promise<string> {
 }
 
 export async function toolCollect(slug: string | undefined): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   await runCollectCommand(repoSlug);
   return `Collection complete for ${repoSlug}`;
 }
 
 export async function toolAnalyze(slug: string | undefined): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   await runAnalyzeCommand(repoSlug);
   return `Analysis complete for ${repoSlug}`;
 }
 
 export async function toolReport(slug: string | undefined): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   await runReportCommand({ repoSlug, analyze: false });
   return `Report generated for ${repoSlug}`;
 }
@@ -103,7 +114,7 @@ export async function toolSnapshotDiff(
   leftTimestamp: string | undefined,
   rightTimestamp: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
 
   const right = rightTimestamp
     ? await loadSnapshotByTimestamp(repoSlug, rightTimestamp)
@@ -135,7 +146,7 @@ export async function toolSnapshotDiff(
 export async function toolListWorkDocs(
   slug: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   const docs = await loadWorkDocuments(repoSlug);
   const active = docs.filter(
     (d) => d.status !== "resolved" && d.status !== "wont-fix",
@@ -159,7 +170,7 @@ export async function toolGetWorkDoc(
   slug: string | undefined,
   findingId: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   if (!findingId || findingId.trim().length === 0) {
     throw new Error("Missing findingId");
   }
@@ -177,7 +188,7 @@ export async function toolUpdateWorkStatus(
   status: string | undefined,
   note: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   if (!findingId || findingId.trim().length === 0) {
     throw new Error("Missing findingId");
   }
@@ -205,7 +216,7 @@ export async function toolUpdateWorkStatus(
 }
 
 export async function toolListPlans(slug: string | undefined): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   const plansDir = path.resolve(process.cwd(), "data", repoSlug, "plans");
   try {
     const { readdir } = await import("node:fs/promises");
@@ -220,7 +231,7 @@ export async function toolGetPlan(
   slug: string | undefined,
   findingId: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   if (!findingId || findingId.trim().length === 0) {
     throw new Error("Missing findingId");
   }
@@ -238,7 +249,7 @@ export async function toolGetPlan(
 export async function toolTrustScores(
   slug: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   const metrics = await loadAllTrustMetrics(repoSlug);
   return JSON.stringify(metrics, null, 2);
 }
@@ -246,7 +257,7 @@ export async function toolTrustScores(
 export async function toolTrajectoryInit(
   slug: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   const store = new TrajectoryStore(repoSlug);
   await store.init();
   return `Trajectory initialized for ${repoSlug}`;
@@ -255,7 +266,7 @@ export async function toolTrajectoryInit(
 export async function toolTrajectoryGet(
   slug: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   const store = new TrajectoryStore(repoSlug);
   const graph = await store.load();
   return JSON.stringify(graph, null, 2);
@@ -265,7 +276,7 @@ export async function toolTrajectoryImport(
   slug: string | undefined,
   mermaid: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   if (!mermaid) {
     throw new Error("Missing mermaid content");
   }
@@ -281,7 +292,7 @@ export async function toolTrajectoryPatch(
   operations: PatchOperation[] | undefined,
   expectedRevision?: number,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   if (!operations || !Array.isArray(operations)) {
     throw new Error("Missing or invalid operations array");
   }
@@ -293,7 +304,7 @@ export async function toolTrajectoryPatch(
 export async function toolTrajectoryExport(
   slug: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   const store = new TrajectoryStore(repoSlug);
   const graph = await store.load();
   return exportMermaidTrajectory(graph);
@@ -303,7 +314,7 @@ export async function toolTrajectoryComment(
   slug: string | undefined,
   prNumber: string | undefined,
 ): Promise<string> {
-  const repoSlug = ensureSlug(slug);
+  const repoSlug = await ensureSlug(slug);
   if (!prNumber || Number.isNaN(parseInt(prNumber, 10))) {
     throw new Error("Missing or invalid PR number");
   }

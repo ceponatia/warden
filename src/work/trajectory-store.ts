@@ -4,7 +4,9 @@ import { TrajectoryGraph, TrajectoryGraphSchema, TrajectoryEvent, PatchOperation
 import { validateTrajectoryInvariants } from './trajectory-invariants.js';
 
 export class TrajectoryStore {
-  constructor(private repoSlug: string, private dataDir: string = 'data') {}
+  constructor(private repoSlug: string, private dataDir: string = 'data') {
+    this.validateBaseDirContainment();
+  }
 
   private get baseDir() {
     return path.join(this.dataDir, this.repoSlug, 'trajectory');
@@ -16,6 +18,15 @@ export class TrajectoryStore {
 
   private get eventsPath() {
     return path.join(this.baseDir, 'events.jsonl');
+  }
+
+  private validateBaseDirContainment(): void {
+    const resolvedBaseDir = path.resolve(this.baseDir);
+    const resolvedDataDir = path.resolve(this.dataDir);
+
+    if (!resolvedBaseDir.startsWith(resolvedDataDir + path.sep)) {
+      throw new Error(`Trajectory path escapes data directory for repo "${this.repoSlug}".`);
+    }
   }
 
   async init(): Promise<void> {

@@ -7,6 +7,7 @@ import {
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import * as z from "zod";
+import { PatchOperationSchema } from "../types/trajectory.js";
 
 import { readResourceByUri } from "./resources.js";
 import {
@@ -382,7 +383,7 @@ function registerTrajectoryTools(server: McpServer): void {
       inputSchema: z.object({
         repo: z.string().describe("Repo slug"),
         actor: z.string().optional().describe("Actor performing the patch"),
-        operations: z.array(z.any()).describe("List of patch operations"),
+        operations: z.array(PatchOperationSchema).describe("List of patch operations"),
         expectedRevision: z.number().optional().describe("Optimistic concurrency check: fail if graph has moved past this revision"),
       }),
     },
