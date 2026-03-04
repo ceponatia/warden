@@ -25,7 +25,7 @@ export class TrajectoryStore {
     const resolvedDataDir = path.resolve(this.dataDir);
 
     if (!resolvedBaseDir.startsWith(resolvedDataDir + path.sep)) {
-      throw new Error(`Trajectory path escapes data directory: ${resolvedBaseDir}`);
+      throw new Error(`Trajectory path escapes data directory for repo "${this.repoSlug}".`);
     }
   }
 
