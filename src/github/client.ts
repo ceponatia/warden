@@ -32,5 +32,15 @@ export async function resolveAuthenticatedGithubLogin(): Promise<
     }
   })();
 
+  authenticatedLoginPromise.then(
+    (login) => {
+      if (login === undefined) {
+        authenticatedLoginPromise = undefined;
+      }
+    },
+    () => {
+      authenticatedLoginPromise = undefined;
+    },
+  );
   return authenticatedLoginPromise;
 }
