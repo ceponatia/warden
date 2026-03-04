@@ -1,3 +1,5 @@
+// Rationale: autonomy policy, trust evaluation, and grant/revoke persistence are co-located as one policy engine.
+/* eslint-disable max-lines */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";

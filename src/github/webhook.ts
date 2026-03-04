@@ -161,6 +161,8 @@ async function handleDeleteEvent(
   }
 }
 
+// Rationale: PR event handling intentionally branches by action and PR type to keep webhook policy decisions explicit.
+// eslint-disable-next-line complexity
 async function handlePullRequestEvent(
   ctx: { slug: string; owner: string; repo: string },
   payload: Record<string, unknown>,
@@ -177,9 +179,19 @@ async function handlePullRequestEvent(
   const merged = pr.merged === true;
 
   // Handle PR opened (non-Warden PRs only)
-  if (action === "opened" && !isWardenPr && prNumber && handlers.onPullRequestOpened) {
+  if (
+    action === "opened" &&
+    !isWardenPr &&
+    prNumber &&
+    handlers.onPullRequestOpened
+  ) {
     try {
-      await handlers.onPullRequestOpened({ slug: ctx.slug, owner: ctx.owner, repo: ctx.repo, prNumber });
+      await handlers.onPullRequestOpened({
+        slug: ctx.slug,
+        owner: ctx.owner,
+        repo: ctx.repo,
+        prNumber,
+      });
     } catch (error) {
       console.error("Failed to post trajectory comment on PR open:", error);
     }
@@ -201,14 +213,24 @@ async function handlePullRequestEvent(
 
   if (!isWardenPr && shouldTriggerCollection) {
     if (prNumber) {
-      await handlers.onPullRequestMerged({ slug: ctx.slug, owner: ctx.owner, repo: ctx.repo, prNumber });
+      await handlers.onPullRequestMerged({
+        slug: ctx.slug,
+        owner: ctx.owner,
+        repo: ctx.repo,
+        prNumber,
+      });
     }
     return;
   }
 
   if (isWardenPr && shouldTriggerCollection) {
     if (prNumber) {
-      await handlers.onPullRequestMerged({ slug: ctx.slug, owner: ctx.owner, repo: ctx.repo, prNumber });
+      await handlers.onPullRequestMerged({
+        slug: ctx.slug,
+        owner: ctx.owner,
+        repo: ctx.repo,
+        prNumber,
+      });
     }
   }
 }

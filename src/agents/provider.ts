@@ -12,6 +12,8 @@ export interface ProviderCallOptions {
   maxTokens?: number;
 }
 
+// Rationale: provider/env validation is centralized so misconfiguration errors are produced consistently in one place.
+// eslint-disable-next-line complexity
 export function resolveProviderConfig(): ProviderConfig {
   const rawProvider = process.env["WARDEN_AI_PROVIDER"] ?? "github";
   if (
@@ -44,12 +46,14 @@ export function resolveProviderConfig(): ProviderConfig {
         "ANTHROPIC_API_KEY environment variable is required for the anthropic provider.",
       );
     }
-    const model = process.env["WARDEN_AI_MODEL"] ?? "claude-3-5-sonnet-20241022";
+    const model =
+      process.env["WARDEN_AI_MODEL"] ?? "claude-3-5-sonnet-20241022";
     return { provider, model, apiKey };
   }
 
   // GitHub Models provider (free tier)
-  const apiKey = process.env["GITHUB_TOKEN"] ?? process.env["WARDEN_GITHUB_TOKEN"];
+  const apiKey =
+    process.env["GITHUB_TOKEN"] ?? process.env["WARDEN_GITHUB_TOKEN"];
   if (!apiKey) {
     throw new Error(
       "GITHUB_TOKEN or WARDEN_GITHUB_TOKEN is required for the github provider.",
@@ -110,14 +114,17 @@ async function callGithubModels(
   });
 
   // Use the GitHub Models inference endpoint
-  const response = await fetch("https://models.github.ai/inference/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
+  const response = await fetch(
+    "https://models.github.ai/inference/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body,
     },
-    body,
-  });
+  );
 
   if (!response.ok) {
     const text = await response.text();

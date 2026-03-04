@@ -29,7 +29,12 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("vizVibe.createWorkflow", async () => {
       const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders) {
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("Please open a workspace first");
+        return;
+      }
+      const workspaceFolder = workspaceFolders[0];
+      if (!workspaceFolder) {
         vscode.window.showErrorMessage("Please open a workspace first");
         return;
       }
@@ -40,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
       });
 
       if (fileName) {
-        const filePath = vscode.Uri.joinPath(workspaceFolders[0].uri, fileName);
+        const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
         const defaultContent = `flowchart TD
     %% @start [start]: Workflow start point
     start(["Start"])
@@ -70,18 +75,20 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("vizVibe.recordTurn", async () => {
       const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders) {
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("Please open a workspace first");
+        return;
+      }
+      const workspaceFolder = workspaceFolders[0];
+      if (!workspaceFolder) {
         vscode.window.showErrorMessage("Please open a workspace first");
         return;
       }
 
-      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const workspacePath = workspaceFolder.uri.fsPath;
 
       // Check if vizvibe.mmd exists
-      const mmdPath = vscode.Uri.joinPath(
-        workspaceFolders[0].uri,
-        "vizvibe.mmd",
-      );
+      const mmdPath = vscode.Uri.joinPath(workspaceFolder.uri, "vizvibe.mmd");
       let mmdExists = false;
       try {
         await vscode.workspace.fs.stat(mmdPath);
@@ -130,9 +137,12 @@ workspacePath: ${workspacePath}`;
 
 async function checkAndPromptInitialization(context: vscode.ExtensionContext) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders) return;
+  if (!workspaceFolders || workspaceFolders.length === 0) return;
 
-  const workspaceRoot = workspaceFolders[0].uri;
+  const workspaceFolder = workspaceFolders[0];
+  if (!workspaceFolder) return;
+
+  const workspaceRoot = workspaceFolder.uri;
 
   // Check if vizvibe.mmd specifically exists (not any .mmd file)
   const vizvibePath = vscode.Uri.joinPath(workspaceRoot, "vizvibe.mmd");
@@ -163,12 +173,17 @@ async function initializeVizVibe(
   showSuccess: boolean,
 ) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders) {
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    vscode.window.showErrorMessage("Please open a workspace first");
+    return;
+  }
+  const workspaceFolder = workspaceFolders[0];
+  if (!workspaceFolder) {
     vscode.window.showErrorMessage("Please open a workspace first");
     return;
   }
 
-  const workspaceRoot = workspaceFolders[0].uri;
+  const workspaceRoot = workspaceFolder.uri;
 
   try {
     // 1. Create vizvibe.mmd
@@ -231,6 +246,8 @@ async function createTrajectoryFile(workspaceRoot: vscode.Uri) {
  * Set up Cursor rules for vizvibe integration.
  * Creates .cursor/rules/vizvibe.mdc only (hooks don't work in Cursor).
  */
+// Rationale: environment detection plus layered file-source fallback is kept inline to keep setup behavior explicit.
+// eslint-disable-next-line complexity
 async function setupCursorRules(workspaceRoot: vscode.Uri) {
   const appName = vscode.env.appName.toLowerCase();
   const appHost = (
@@ -308,6 +325,8 @@ ${fullVizvibeContent}
   console.log("[Viz Vibe] Cursor rules set up successfully");
 }
 
+// Rationale: this function intentionally combines gating, file loading, merge/replace logic, and persistence for one atomic update.
+// eslint-disable-next-line complexity
 async function updateGlobalGeminiRules() {
   // Only update GEMINI.md in Antigravity environment
   if (!isAntigravity()) {
@@ -334,15 +353,18 @@ async function updateGlobalGeminiRules() {
     // Fallback: try to read from workspace's shared/templates
     if (!vizvibeContent) {
       const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (workspaceFolders) {
-        const templatePath = path.join(
-          workspaceFolders[0].uri.fsPath,
-          "shared",
-          "templates",
-          "VIZVIBE.md",
-        );
-        if (fs.existsSync(templatePath)) {
-          vizvibeContent = fs.readFileSync(templatePath, "utf-8");
+      if (workspaceFolders && workspaceFolders.length > 0) {
+        const workspaceFolder = workspaceFolders[0];
+        if (workspaceFolder) {
+          const templatePath = path.join(
+            workspaceFolder.uri.fsPath,
+            "shared",
+            "templates",
+            "VIZVIBE.md",
+          );
+          if (fs.existsSync(templatePath)) {
+            vizvibeContent = fs.readFileSync(templatePath, "utf-8");
+          }
         }
       }
     }
