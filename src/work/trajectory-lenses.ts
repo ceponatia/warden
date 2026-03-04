@@ -117,13 +117,15 @@ export function redactSecretAssignments(diff: string): string {
 }
 
 async function logAiAudit(entry: AiAuditEntry): Promise<void> {
-  const auditPath = path.join(
-    process.cwd(),
-    "data",
-    entry.repoSlug,
-    "trajectory",
-    "ai-audit.jsonl",
-  );
+  const baseDataDir = path.resolve(process.cwd(), "data");
+  const repoDir = path.resolve(baseDataDir, entry.repoSlug);
+  const relative = path.relative(baseDataDir, repoDir);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Invalid repoSlug for AI audit logging: ${entry.repoSlug}`);
+  }
+
+  const auditPath = path.join(repoDir, "trajectory", "ai-audit.jsonl");
   await fs.mkdir(path.dirname(auditPath), { recursive: true });
   await fs.appendFile(auditPath, `${JSON.stringify(entry)}\n`, "utf-8");
 }
