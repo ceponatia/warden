@@ -14,6 +14,8 @@ import {
   loadWorkDocuments,
   saveWorkDocument,
 } from "../work/manager.js";
+import { TrajectoryStore } from "../work/trajectory-store.js";
+import { exportMermaidTrajectory } from "../work/trajectory-vizvibe.js";
 import { renderAgentsView } from "./views/agents-view.js";
 import {
   escapeHtml,
@@ -467,6 +469,38 @@ export function registerDashboardRoutes(app: Express): void {
     const agentFilter =
       typeof req.query.agent === "string" ? req.query.agent : undefined;
     res.type("html").send(await renderAgentsView(slug, agentFilter));
+  });
+  app.get("/repo/:slug/trajectory", async (req, res) => {
+    const slug = getValidatedSlug(req, res);
+    if (!slug) return;
+    const store = new TrajectoryStore(slug);
+    try {
+      const graph = await store.load();
+      const mmd = exportMermaidTrajectory(graph);
+      res.type("html").send(renderPage(`Trajectory: ${slug}`, `
+        <div class="card">
+          <h2>Work Trajectory</h2>
+          <pre class="mermaid">${escapeHtml(mmd)}</pre>
+        </div>
+        <script type="module">
+          import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+          mermaid.initialize({ startOnLoad: true });
+        </script>
+      `, { slug }));
+    } catch (error) {
+      res.status(404).send((error as Error).message);
+    }
+  });
+  app.get("/repo/:slug/trajectory/mermaid", async (req, res) => {
+    const slug = getValidatedSlug(req, res);
+    if (!slug) return;
+    const store = new TrajectoryStore(slug);
+    try {
+      const graph = await store.load();
+      res.type("text/plain").send(exportMermaidTrajectory(graph));
+    } catch (error) {
+      res.status(404).send((error as Error).message);
+    }
   });
   app.get("/portfolio", async (_req, res) => {
     res.type("html").send(await renderPortfolioOverviewPage());

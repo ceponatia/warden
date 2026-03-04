@@ -163,6 +163,18 @@ export const FINDING_CODE_REGISTRY: FindingCodeDef[] = [
     shortDescription: "Module never loaded at runtime",
     wikiPath: "wiki/WD-M9-003.md",
   },
+  {
+    code: "WD-M10-001",
+    metric: "M10",
+    shortDescription: "Blocked trajectory nodes",
+    wikiPath: "wiki/WD-M10-001.md",
+  },
+  {
+    code: "WD-M10-002",
+    metric: "M10",
+    shortDescription: "Stale trajectory graph",
+    wikiPath: "wiki/WD-M10-002.md",
+  },
 ];
 
 const FINDING_CODE_MAP = new Map(

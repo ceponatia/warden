@@ -2,6 +2,91 @@
 
 Repo monitoring CLI that collects git stats, staleness, debt, complexity, import health, and runtime coverage into structured snapshots. Phase 2 adds AI-powered analysis via `warden analyze`.
 
+## Project Trajectory
+The following graph is automatically maintained by the Warden Trajectory Agent to track the project's evolution.
+
+```mermaid
+flowchart TD
+    %% === PROJECT GOALS ===
+    %% Ultimate Goal: Building an autonomous agent orchestration layer for comprehensive repository health monitoring.
+    %% Current Goal: Finalizing the event-driven Trajectory system for multi-agent coordination.
+
+    %% === START ===
+    %% @project_start [start, closed, 2026-02-24, coldaine]
+    project_start("Warden Scaffold Baseline<br/><sub>[2026-02-24]<br/>Initial repository monitoring<br/>architecture and project<br/>structure initialization</sub>")
+
+    %% @ultimate_goal [end, opened, 2026-03-02, coldaine]
+    ultimate_goal("Autonomous Orchestration<br/><sub>[Goal]<br/>Fully autonomous multi-agent<br/>coordination and proactive<br/>repository self-healing</sub>")
+
+    %% === PHASE 1-4: CORE FOUNDATION ===
+    %% @foundation [ai-task, closed, 2026-02-26, coldaine]
+    foundation("Core Engine (Ph 1-4)<br/><sub>[2026-02-26]<br/>Implemented analysis pipeline,<br/>agent handlers, scheduling,<br/>wiki registry, and MCP basics</sub>")
+
+    %% === PHASE 5: WORK MANAGEMENT ===
+    %% @work_docs [ai-task, closed, 2026-02-26, coldaine]
+    work_docs("Work Documents (Ph 5)<br/><sub>[2026-02-26]<br/>Added escalation logic,<br/>finding-to-work conversion,<br/>and agent dispatch handlers</sub>")
+
+    %% === PHASE 6-7: INTERFACES ===
+    %% @surfaces [ai-task, closed, 2026-02-26, coldaine]
+    surfaces("Interfaces (Ph 6-7)<br/><sub>[2026-02-26]<br/>Scaffolded web dashboard and<br/>VS Code extension for local<br/>developer environment visibility</sub>")
+
+    %% === PHASE 8-9: INTEGRATION ===
+    %% @autonomy_github [ai-task, closed, 2026-02-27, coldaine]
+    autonomy_github("Ecosystem (Ph 8-9)<br/><sub>[2026-02-27]<br/>Implemented autonomy<br/>graduation flows and primary<br/>GitHub Webhook integration</sub>")
+
+    %% === PL02 SERIES: INTELLIGENCE ===
+    %% @intelligence [ai-task, closed, 2026-02-27, coldaine]
+    intelligence("Intelligence (PL02)<br/><sub>[2026-02-27]<br/>Added coverage collectors,<br/>cross-repo portfolio views,<br/>and interactive dashboard controls</sub>")
+
+    %% === PH 4-5: SCALE ===
+    %% @expansion [ai-task, closed, 2026-03-02, coldaine]
+    expansion("Expansion (Ph 4-5)<br/><sub>[2026-03-02]<br/>Built notification/alerting<br/>pipeline and expanded agent<br/>parallelism for larger tasks</sub>")
+
+    %% === TRAJECTORY SYSTEM (TODAY) ===
+    %% @trajectory_core [ai-task, closed, 2026-03-02, coldaine]
+    trajectory_core("Trajectory Domain<br/><sub>[2026-03-02]<br/>Built canonical JSON state,<br/>event logging, and safety gates<br/>for work journey tracking</sub>")
+
+    %% @trajectory_ux [ai-task, closed, 2026-03-02, coldaine]
+    trajectory_ux("Trajectory UX<br/><sub>[2026-03-02]<br/>Integrated visualization in<br/>Dashboard and MCP tools for<br/>human-AI context alignment</sub>")
+
+    %% === CONNECTIONS ===
+    project_start --> foundation
+    foundation --> work_docs
+    work_docs --> surfaces
+    surfaces --> autonomy_github
+    autonomy_github --> intelligence
+    intelligence --> expansion
+    expansion --> trajectory_core
+    trajectory_core --> trajectory_ux
+    trajectory_ux -.-> ultimate_goal
+
+    %% === RECENT WORK HIGHLIGHT ===
+    subgraph recent [RECENT]
+        trajectory_core
+        trajectory_ux
+    end
+
+    %% === STYLES ===
+    %% Closed tasks (soft purple)
+    style project_start fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style foundation fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style work_docs fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style surfaces fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style autonomy_github fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style intelligence fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style expansion fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+    style trajectory_core fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+
+    %% Recent node (highlighted purple)
+    style trajectory_ux fill:#2d1f4e,stroke:#c084fc,color:#e9d5ff,stroke-width:2px
+
+    %% Recent subgraph (dashed border)
+    style recent fill:transparent,stroke:#c084fc,color:#c084fc,stroke-width:2px,stroke-dasharray:5 5
+
+    %% Open tasks (soft green)
+    style ultimate_goal fill:#1a1a2e,stroke:#4ade80,color:#86efac,stroke-width:1px
+```
+
 ## Setup
 
 ```bash

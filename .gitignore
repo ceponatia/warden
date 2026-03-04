@@ -10,3 +10,7 @@ config/github.json
 config/github-webhook.json
 package-lock.json
 .markdownlint-cli2.jsonc
+coverage/
+vitest.config.ts.timestamp-*
+.omc/
+.audit-*/

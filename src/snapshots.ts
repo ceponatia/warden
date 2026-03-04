@@ -12,6 +12,7 @@ import type {
   SnapshotBundle,
   StalenessSnapshot,
 } from "./types/snapshot.js";
+import type { TrajectoryGraph } from "./types/trajectory.js";
 
 export interface LoadedSnapshot extends SnapshotBundle {
   timestamp: string;
@@ -58,6 +59,7 @@ export async function loadSnapshotByTimestamp(
     runtime,
     coverage,
     docStaleness,
+    trajectoryGraph,
   ] = await Promise.all([
     readFile(path.join(snapshotDir, "git-stats.json"), "utf8"),
     readFile(path.join(snapshotDir, "staleness.json"), "utf8"),
@@ -73,6 +75,9 @@ export async function loadSnapshotByTimestamp(
     readJsonIfPresent<DocStalenessSnapshot>(
       path.join(snapshotDir, "doc-staleness.json"),
     ),
+    readJsonIfPresent<TrajectoryGraph>(
+      path.join(snapshotDir, "trajectory", "state.json"),
+    ),
   ]);
 
   return {
@@ -85,6 +90,7 @@ export async function loadSnapshotByTimestamp(
     runtime: runtime ?? undefined,
     coverage: coverage ?? undefined,
     docStaleness: docStaleness ?? undefined,
+    trajectory: trajectoryGraph ?? undefined,
   };
 }
 

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { loadRepoConfigs } from "../config/loader.js";
+import { loadRepoConfigs, getRepoConfigBySlug } from "../config/loader.js";
 import { computeDelta } from "../agents/delta.js";
 import { runAnalyzeCommand } from "../cli/commands/analyze.js";
 import { runCollectCommand } from "../cli/commands/collect.js";
@@ -16,6 +16,10 @@ import {
 } from "../work/manager.js";
 import { loadAllTrustMetrics } from "../work/trust.js";
 import type { WorkDocumentStatus } from "../types/work.js";
+import { TrajectoryStore } from "../work/trajectory-store.js";
+import { parseMermaidTrajectory, exportMermaidTrajectory } from "../work/trajectory-vizvibe.js";
+import type { PatchOperation } from "../types/trajectory.js";
+import { postTrajectoryCommentOnPr } from "../work/trajectory-comment.js";
 
 function ensureSlug(slug: string | undefined): string {
   if (!slug || slug.trim().length === 0) {
@@ -237,4 +241,80 @@ export async function toolTrustScores(
   const repoSlug = ensureSlug(slug);
   const metrics = await loadAllTrustMetrics(repoSlug);
   return JSON.stringify(metrics, null, 2);
+}
+
+export async function toolTrajectoryInit(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const store = new TrajectoryStore(repoSlug);
+  await store.init();
+  return `Trajectory initialized for ${repoSlug}`;
+}
+
+export async function toolTrajectoryGet(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const store = new TrajectoryStore(repoSlug);
+  const graph = await store.load();
+  return JSON.stringify(graph, null, 2);
+}
+
+export async function toolTrajectoryImport(
+  slug: string | undefined,
+  mermaid: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!mermaid) {
+    throw new Error("Missing mermaid content");
+  }
+  const store = new TrajectoryStore(repoSlug);
+  const graph = parseMermaidTrajectory(mermaid, repoSlug);
+  await store.save(graph);
+  return `Trajectory imported for ${repoSlug}`;
+}
+
+export async function toolTrajectoryPatch(
+  slug: string | undefined,
+  actor: string | undefined,
+  operations: PatchOperation[] | undefined,
+  expectedRevision?: number,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!operations || !Array.isArray(operations)) {
+    throw new Error("Missing or invalid operations array");
+  }
+  const store = new TrajectoryStore(repoSlug);
+  await store.patch(actor || "mcp-tool", operations, expectedRevision);
+  return `Trajectory patched for ${repoSlug}`;
+}
+
+export async function toolTrajectoryExport(
+  slug: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  const store = new TrajectoryStore(repoSlug);
+  const graph = await store.load();
+  return exportMermaidTrajectory(graph);
+}
+
+export async function toolTrajectoryComment(
+  slug: string | undefined,
+  prNumber: string | undefined,
+): Promise<string> {
+  const repoSlug = ensureSlug(slug);
+  if (!prNumber || Number.isNaN(parseInt(prNumber, 10))) {
+    throw new Error("Missing or invalid PR number");
+  }
+  const configs = await loadRepoConfigs();
+  const config = getRepoConfigBySlug(configs, repoSlug);
+  if (!config.github) {
+    throw new Error(`Repo "${repoSlug}" has no GitHub config`);
+  }
+  await postTrajectoryCommentOnPr(
+    config.github.owner, config.github.repo, parseInt(prNumber, 10), repoSlug,
+    { includeLocalImpact: true },
+  );
+  return JSON.stringify({ status: "ok", repo: repoSlug, pr: parseInt(prNumber, 10) });
 }

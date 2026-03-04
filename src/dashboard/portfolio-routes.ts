@@ -58,7 +58,7 @@ export async function renderPortfolioOverviewPage(): Promise<string> {
     );
   }
 
-  const metrics = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"];
+  const metrics = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10"];
   const latestReports = await Promise.all(
     repos.map(async (repo) => ({
       slug: repo.slug,
@@ -167,7 +167,7 @@ export async function renderPortfolioTrendsPage(
       <form class="inline" method="get">
         <label>Metric
           <select name="metric">
-            ${["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"]
+            ${["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10"]
               .map(
                 (m) =>
                   `<option value="${m}" ${selectedMetric === m ? "selected" : ""}>${m}</option>`,

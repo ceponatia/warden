@@ -19,9 +19,17 @@ export interface WebhookConfig {
   };
 }
 
+export interface PullRequestContext {
+  slug: string;
+  owner: string;
+  repo: string;
+  prNumber: number;
+}
+
 export interface WebhookHandlers {
   onPush: (slug: string) => Promise<void>;
-  onPullRequestMerged: (slug: string) => Promise<void>;
+  onPullRequestMerged: (ctx: PullRequestContext) => Promise<void>;
+  onPullRequestOpened?: (ctx: PullRequestContext) => Promise<void>;
   resolveSlugByRepo: (owner: string, repo: string) => Promise<string | null>;
 }
 
@@ -74,24 +82,24 @@ async function handleEvent(params: {
   handlers: WebhookHandlers;
   config: WebhookConfig;
 }): Promise<void> {
-  const slug = await resolveSlug(params.payload, params.handlers);
-  if (!slug) {
+  const ctx = await resolveContext(params.payload, params.handlers);
+  if (!ctx) {
     return;
   }
 
   if (params.event === "push") {
-    await handlePushEvent(slug, params.handlers, params.config);
+    await handlePushEvent(ctx.slug, params.handlers, params.config);
     return;
   }
 
   if (params.event === "delete") {
-    await handleDeleteEvent(slug, params.payload, params.config);
+    await handleDeleteEvent(ctx.slug, params.payload, params.config);
     return;
   }
 
   if (params.event === "pull_request") {
     await handlePullRequestEvent(
-      slug,
+      ctx,
       params.payload,
       params.handlers,
       params.config,
@@ -100,14 +108,14 @@ async function handleEvent(params: {
   }
 
   if (params.event === "pull_request_review") {
-    await handlePullRequestReviewEvent(slug, params.payload);
+    await handlePullRequestReviewEvent(ctx.slug, params.payload);
   }
 }
 
-async function resolveSlug(
+async function resolveContext(
   payload: Record<string, unknown>,
   handlers: WebhookHandlers,
-): Promise<string | null> {
+): Promise<{ slug: string; owner: string; repo: string } | null> {
   const repo = payload.repository as
     | {
         owner?: { login?: string };
@@ -120,7 +128,10 @@ async function resolveSlug(
     return null;
   }
 
-  return handlers.resolveSlugByRepo(owner, name);
+  const slug = await handlers.resolveSlugByRepo(owner, name);
+  if (!slug) return null;
+
+  return { slug, owner, repo: name };
 }
 
 async function handlePushEvent(
@@ -151,7 +162,7 @@ async function handleDeleteEvent(
 }
 
 async function handlePullRequestEvent(
-  slug: string,
+  ctx: { slug: string; owner: string; repo: string },
   payload: Record<string, unknown>,
   handlers: WebhookHandlers,
   config: WebhookConfig,
@@ -161,29 +172,44 @@ async function handlePullRequestEvent(
   if (!pr) {
     return;
   }
+  const prNumber = pr.number;
   const isWardenPr = isWardenPullRequest(pr);
   const merged = pr.merged === true;
+
+  // Handle PR opened (non-Warden PRs only)
+  if (action === "opened" && !isWardenPr && prNumber && handlers.onPullRequestOpened) {
+    try {
+      await handlers.onPullRequestOpened({ slug: ctx.slug, owner: ctx.owner, repo: ctx.repo, prNumber });
+    } catch (error) {
+      console.error("Failed to post trajectory comment on PR open:", error);
+    }
+  }
+
+  // Existing: Handle Warden PR closed (trust recording)
+  if (isWardenPr && action === "closed") {
+    const agentName = extractAgentFromBranch(pr.head?.ref ?? "");
+    if (merged) {
+      await recordMergeResult(ctx.slug, agentName, "accepted");
+    } else {
+      await recordMergeResult(ctx.slug, agentName, "rejected");
+    }
+  }
+
+  // Handle PR merged (collection + trajectory comment)
   const shouldTriggerCollection =
     action === "closed" && merged && config.triggers.onPullRequestMerge;
 
-  if (!isWardenPr) {
-    if (shouldTriggerCollection) {
-      await handlers.onPullRequestMerged(slug);
+  if (!isWardenPr && shouldTriggerCollection) {
+    if (prNumber) {
+      await handlers.onPullRequestMerged({ slug: ctx.slug, owner: ctx.owner, repo: ctx.repo, prNumber });
     }
     return;
   }
 
-  if (action === "closed") {
-    const agentName = extractAgentFromBranch(pr.head?.ref ?? "");
-    if (merged) {
-      await recordMergeResult(slug, agentName, "accepted");
-    } else {
-      await recordMergeResult(slug, agentName, "rejected");
+  if (isWardenPr && shouldTriggerCollection) {
+    if (prNumber) {
+      await handlers.onPullRequestMerged({ slug: ctx.slug, owner: ctx.owner, repo: ctx.repo, prNumber });
     }
-  }
-
-  if (shouldTriggerCollection) {
-    await handlers.onPullRequestMerged(slug);
   }
 }
 
@@ -229,6 +255,7 @@ function buildReviewComments(review: PullRequestReviewPayload): string[] {
 }
 
 type WebhookPullRequest = {
+  number?: number;
   merged?: boolean;
   head?: { ref?: string };
 };

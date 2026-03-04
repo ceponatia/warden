@@ -1,0 +1,35 @@
+flowchart TD
+    %% @project_start [start, closed, 2026-02-24, coldaine]
+    %% @ultimate_goal [end, opened, 2026-03-02, coldaine]
+    %% @foundation [ai-task, closed, 2026-02-26, coldaine]
+    %% @work_docs [ai-task, closed, 2026-02-26, coldaine]
+    %% @surfaces [ai-task, closed, 2026-02-26, coldaine]
+    %% @autonomy_github [ai-task, closed, 2026-02-27, coldaine]
+    %% @intelligence [ai-task, closed, 2026-02-27, coldaine]
+    %% @expansion [ai-task, closed, 2026-03-02, coldaine]
+    %% @trajectory_core [ai-task, closed, 2026-03-02, coldaine]
+    %% @trajectory_ux [ai-task, closed, 2026-03-02, coldaine]
+    %% @parse_commit_dates [feature, closed, 2026-03-04, system]
+
+    project_start("Warden Scaffold Baseline")
+    ultimate_goal("Autonomous Orchestration")
+    foundation("Core Engine (Ph 1-4)")
+    work_docs("Work Documents (Ph 5)")
+    surfaces("Interfaces (Ph 6-7)")
+    autonomy_github("Ecosystem (Ph 8-9)")
+    intelligence("Intelligence (PL02)")
+    expansion("Expansion (Ph 4-5)")
+    trajectory_core("Trajectory Domain")
+    trajectory_ux("Trajectory UX")
+    parse_commit_dates("Parse Commit Dates")
+
+    project_start --> foundation
+    foundation --> work_docs
+    work_docs --> surfaces
+    surfaces --> autonomy_github
+    autonomy_github --> intelligence
+    intelligence --> expansion
+    expansion --> trajectory_core
+    trajectory_core --> trajectory_ux
+    trajectory_ux -.-> ultimate_goal
+    trajectory_ux --> parse_commit_dates

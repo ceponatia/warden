@@ -1,153 +1,433 @@
-import path from "node:path";
+import * as vscode from 'vscode';
+import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
+import { VizFlowEditorProvider } from './VizFlowEditorProvider';
 
-import * as vscode from "vscode";
+const VIZVIBE_INITIALIZED_KEY = 'vizVibe.initialized';
 
-import { registerCommands } from "./commands";
-import { loadRepoSettings } from "./config";
-import { WardenDiagnostics } from "./diagnostics";
-import { WardenOutput } from "./output-channel";
-import { loadLatestReport } from "./report-store";
-import { WardenTreeProvider } from "./tree-view";
-import type { RepoSettings, ReportBundle, WikiEntry } from "./types";
-import { loadWikiEntries } from "./wiki-index";
-import { createWikiHoverProvider } from "./wiki-hover";
+export function activate(context: vscode.ExtensionContext) {
+    console.log('Viz Vibe extension is now active!');
 
-let diagnostics: WardenDiagnostics | null = null;
-let output: WardenOutput | null = null;
-let tree: WardenTreeProvider | null = null;
+    // Register Custom Editor for .mmd files
+    context.subscriptions.push(VizFlowEditorProvider.register(context));
 
-let currentSettings: RepoSettings | null = null;
-let currentBundle: ReportBundle = { report: null, markdown: "" };
+    // Set default editor for .mmd files
+    setDefaultEditorForMmd();
 
-let watcher: vscode.FileSystemWatcher | null = null;
+    // Check if we should prompt for initialization
+    checkAndPromptInitialization(context);
 
-async function refreshAll(): Promise<void> {
-  const settings = await loadRepoSettings();
-  currentSettings = settings;
+    // Register command to manually initialize Viz Vibe
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vizVibe.initProject', () => {
+            initializeVizVibe(context, true);
+        })
+    );
 
-  if (!settings) {
-    currentBundle = { report: null, markdown: "" };
-    diagnostics?.refresh(null, {
-      workspaceRoot: "",
-      dataPath: "data",
-      repoSlug: "",
-      autoRefresh: false,
-      severityFilter: new Set(),
-    });
-    tree?.update(null, null);
-    output?.refresh(currentBundle);
-    return;
-  }
+    // Register command to create new workflow file
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vizVibe.createWorkflow', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('Please open a workspace first');
+                return;
+            }
 
-  currentBundle = await loadLatestReport(settings);
-  diagnostics?.refresh(currentBundle.report, settings);
-  tree?.update(currentBundle.report, settings);
-  output?.refresh(currentBundle);
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Enter workflow file name',
+                value: 'workflow.mmd'
+            });
+
+            if (fileName) {
+                const filePath = vscode.Uri.joinPath(workspaceFolders[0].uri, fileName);
+                const defaultContent = `flowchart TD
+    %% @start [start]: Workflow start point
+    start(["Start"])
+
+    style start fill:#10b981,stroke:#059669,color:#fff,stroke-width:2px
+`;
+
+                await vscode.workspace.fs.writeFile(filePath, Buffer.from(defaultContent, 'utf-8'));
+                const doc = await vscode.workspace.openTextDocument(filePath);
+                await vscode.window.showTextDocument(doc);
+                vscode.window.showInformationMessage(`Created ${fileName}`);
+            }
+        })
+    );
+
+    // Register simple test command for keybinding verification
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vizVibe.test', async () => {
+            vscode.window.showInformationMessage('Viz Vibe: Keybinding works!');
+        })
+    );
+
+    // Register command to record current turn via AI
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vizVibe.recordTurn', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('Please open a workspace first');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            
+            // Check if vizvibe.mmd exists
+            const mmdPath = vscode.Uri.joinPath(workspaceFolders[0].uri, 'vizvibe.mmd');
+            let mmdExists = false;
+            try {
+                await vscode.workspace.fs.stat(mmdPath);
+                mmdExists = true;
+            } catch {
+                mmdExists = false;
+            }
+
+            if (!mmdExists) {
+                vscode.window.showWarningMessage('vizvibe.mmd not found. Run "Viz Vibe: Initialize Project" first.');
+                return;
+            }
+            
+            // Construct a message for AI to update trajectory based on recent conversation
+            const message = `[Viz Vibe] Please update vizvibe.mmd based on the work done in this conversation.
+
+**Instructions:**
+1. First, read the vizvibe.mmd file
+2. Add new nodes for the tasks completed in this conversation
+3. Node format: \`%% @node_id [type, state]: description\`
+4. Connect to existing nodes appropriately
+5. Use 'closed' state for completed tasks, 'opened' for in-progress
+
+workspacePath: ${workspacePath}`;
+
+            // Copy to clipboard - this works across all editors
+            await vscode.env.clipboard.writeText(message);
+            vscode.window.showInformationMessage('📋 Viz Vibe: Update request copied to clipboard. Paste in AI chat to update trajectory.');
+        })
+    );
+
+    // Register search command for graph view (Cmd+F)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vizVibe.searchGraph', () => {
+            // This command is triggered by keybinding, the webview handles it via message
+            // The webview itself captures keyboard events, but VS Code intercepts Cmd+F
+            // So we need to send a message to the active webview
+            VizFlowEditorProvider.triggerSearch();
+        })
+    );
 }
 
-function setupAutoRefresh(
-  context: vscode.ExtensionContext,
-  settings: RepoSettings,
-): void {
-  watcher?.dispose();
-  watcher = null;
+async function checkAndPromptInitialization(context: vscode.ExtensionContext) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) return;
 
-  if (!settings.autoRefresh) {
-    return;
-  }
+    const workspaceRoot = workspaceFolders[0].uri;
 
-  const root = vscode.workspace.workspaceFolders?.[0];
-  if (!root) {
-    return;
-  }
+    // Check if vizvibe.mmd specifically exists (not any .mmd file)
+    const vizvibePath = vscode.Uri.joinPath(workspaceRoot, 'vizvibe.mmd');
+    try {
+        await vscode.workspace.fs.stat(vizvibePath);
+        // vizvibe.mmd exists, just ensure global rules exist
+        await updateGlobalGeminiRules();
+        return;
+    } catch {
+        // vizvibe.mmd doesn't exist, continue to prompt
+    }
 
-  const pattern = new vscode.RelativePattern(
-    root,
-    path.posix.join(
-      settings.dataPath.replace(/\\/g, "/"),
-      settings.repoSlug,
-      "reports",
-      "*.json",
-    ),
-  );
-  watcher = vscode.workspace.createFileSystemWatcher(pattern);
-  watcher.onDidCreate(() => {
-    void refreshAll();
-  });
-  watcher.onDidChange(() => {
-    void refreshAll();
-  });
-  watcher.onDidDelete(() => {
-    void refreshAll();
-  });
-  context.subscriptions.push(watcher);
+    // No .mmd file - always ask (no alreadyAsked check)
+    const selection = await vscode.window.showInformationMessage(
+        '🚀 Would you like to set up Viz Vibe for this project?\n\nAI will automatically record work history in a graph.',
+        'Yes',
+        'No'
+    );
+
+    if (selection === 'Yes') {
+        await initializeVizVibe(context, false);
+    }
+    // If 'No' - just skip, will ask again next time project is opened
 }
 
-function registerHoverProvider(
-  context: vscode.ExtensionContext,
-  wikiByCode: Map<string, WikiEntry>,
-): void {
-  context.subscriptions.push(
-    vscode.languages.registerHoverProvider(
-      [{ scheme: "file" }, { scheme: "untitled" }],
-      createWikiHoverProvider(wikiByCode),
-    ),
-  );
+async function initializeVizVibe(context: vscode.ExtensionContext, showSuccess: boolean) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+        vscode.window.showErrorMessage('Please open a workspace first');
+        return;
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri;
+
+    try {
+        // 1. Create vizvibe.mmd
+        await createTrajectoryFile(workspaceRoot);
+
+        // 2. Set up environment-specific integrations
+        await updateGlobalGeminiRules();  // Antigravity
+        await setupCursorRules(workspaceRoot);  // Cursor (rules only, no hooks)
+
+        // Mark as initialized
+        const workspaceKey = `${VIZVIBE_INITIALIZED_KEY}.${workspaceRoot.fsPath}`;
+        await context.globalState.update(workspaceKey, true);
+
+        if (showSuccess) {
+            vscode.window.showInformationMessage('✅ Viz Vibe has been set up for this project!');
+        } else {
+            const openTrajectory = await vscode.window.showInformationMessage(
+                '✅ Viz Vibe has been set up for this project!',
+                'Open vizvibe.mmd'
+            );
+            if (openTrajectory) {
+                const trajectoryUri = vscode.Uri.joinPath(workspaceRoot, 'vizvibe.mmd');
+                // Open with Custom Editor (Graph View) directly
+                await vscode.commands.executeCommand('vscode.openWith', trajectoryUri, 'vizVibe.vizflowEditor');
+            }
+        }
+    } catch (error) {
+        vscode.window.showErrorMessage(`Viz Vibe setup failed: ${error}`);
+    }
 }
 
-async function loadWikiMap(
-  settings: RepoSettings | null,
-): Promise<Map<string, WikiEntry>> {
-  const map = new Map<string, WikiEntry>();
-  if (!settings) {
-    return map;
-  }
+async function createTrajectoryFile(workspaceRoot: vscode.Uri) {
+    const filePath = vscode.Uri.joinPath(workspaceRoot, 'vizvibe.mmd');
 
-  const entries = await loadWikiEntries(settings.workspaceRoot);
-  for (const entry of entries) {
-    map.set(entry.code, entry);
-  }
-  return map;
+    // Check if already exists
+    try {
+        await vscode.workspace.fs.stat(filePath);
+        return; // Already exists
+    } catch {
+        // File doesn't exist, create it
+    }
+
+    const content = `flowchart TD
+    %% @project_start [start]: Viz Vibe initialized
+    project_start(["Project Start"])
+
+    style project_start fill:#64748b,stroke:#475569,color:#fff,stroke-width:1px
+`;
+
+    await vscode.workspace.fs.writeFile(filePath, Buffer.from(content, 'utf-8'));
 }
 
-export async function activate(
-  context: vscode.ExtensionContext,
-): Promise<void> {
-  diagnostics = new WardenDiagnostics();
-  output = new WardenOutput();
-  tree = new WardenTreeProvider();
+/**
+ * Set up Cursor rules for vizvibe integration.
+ * Creates .cursor/rules/vizvibe.mdc only (hooks don't work in Cursor).
+ */
+async function setupCursorRules(workspaceRoot: vscode.Uri) {
+    const appName = vscode.env.appName.toLowerCase();
+    const appHost = (vscode.env as any).appHost?.toLowerCase() || '';
+    const uriScheme = vscode.env.uriScheme?.toLowerCase() || '';
+    
+    // Check if running in Cursor
+    const isCursor = appName.includes('cursor') || 
+                     appHost.includes('cursor') || 
+                     uriScheme.includes('cursor');
+    
+    if (!isCursor) {
+        console.log('[Viz Vibe] Not Cursor environment, skipping rules setup');
+        return;
+    }
+    
+    console.log('[Viz Vibe] Cursor detected! Setting up rules...');
 
-  context.subscriptions.push(diagnostics, output);
-  context.subscriptions.push(
-    vscode.window.createTreeView("warden.findings", { treeDataProvider: tree }),
-  );
+    const cursorDir = vscode.Uri.joinPath(workspaceRoot, '.cursor');
+    const rulesDir = vscode.Uri.joinPath(cursorDir, 'rules');
 
-  registerCommands(context, {
-    getSettings: () => currentSettings,
-    getBundle: () => currentBundle,
-    refresh: refreshAll,
-  });
+    try {
+        await vscode.workspace.fs.createDirectory(rulesDir);
+    } catch {
+        // Directory might already exist
+    }
 
-  currentSettings = await loadRepoSettings();
-  setupAutoRefresh(
-    context,
-    currentSettings ?? {
-      workspaceRoot: "",
-      dataPath: "data",
-      repoSlug: "",
-      autoRefresh: false,
-      severityFilter: new Set(),
-    },
-  );
+    // Read full VIZVIBE.md content
+    let fullVizvibeContent = '';
+    const extensionPath = vscode.extensions.getExtension('viz-vibe.viz-vibe')?.extensionPath;
+    
+    if (extensionPath) {
+        const vizvibeMdPath = path.join(extensionPath, 'VIZVIBE.md');
+        if (fs.existsSync(vizvibeMdPath)) {
+            fullVizvibeContent = fs.readFileSync(vizvibeMdPath, 'utf-8');
+        }
+    }
+    
+    // Fallback: try to read from workspace's shared/templates
+    if (!fullVizvibeContent) {
+        const templatePath = path.join(workspaceRoot.fsPath, 'shared', 'templates', 'VIZVIBE.md');
+        if (fs.existsSync(templatePath)) {
+            fullVizvibeContent = fs.readFileSync(templatePath, 'utf-8');
+        }
+    }
+    
+    // Final fallback: use minimal content
+    if (!fullVizvibeContent) {
+        console.log('[Viz Vibe] VIZVIBE.md not found, using minimal rules');
+        fullVizvibeContent = getMinimalVizVibeRules();
+    }
 
-  const wikiByCode = await loadWikiMap(currentSettings);
-  registerHoverProvider(context, wikiByCode);
+    // Create Cursor rules file (.mdc format with YAML frontmatter + full VIZVIBE.md)
+    const vizvibeRuleContent = `---
+description: Viz Vibe trajectory management - visual context map for AI coding
+globs:
+alwaysApply: true
+---
 
-  await refreshAll();
+${fullVizvibeContent}
+`;
+    await vscode.workspace.fs.writeFile(
+        vscode.Uri.joinPath(rulesDir, 'vizvibe.mdc'),
+        Buffer.from(vizvibeRuleContent, 'utf-8')
+    );
+
+    console.log('[Viz Vibe] Cursor rules set up successfully');
 }
 
-export function deactivate(): void {
-  watcher?.dispose();
-  diagnostics?.dispose();
-  output?.dispose();
+async function updateGlobalGeminiRules() {
+    // Only update GEMINI.md in Antigravity environment
+    if (!isAntigravity()) {
+        console.log('Skipping GEMINI.md update: Not in Antigravity environment');
+        return;
+    }
+
+    const geminiDir = path.join(os.homedir(), '.gemini');
+    const geminiPath = path.join(geminiDir, 'GEMINI.md');
+
+    try {
+        // Try to read VIZVIBE.md from the extension's bundled files
+        const extensionPath = vscode.extensions.getExtension('viz-vibe.viz-vibe')?.extensionPath;
+        let vizvibeContent = '';
+        
+        if (extensionPath) {
+            const vizvibeMdPath = path.join(extensionPath, 'VIZVIBE.md');
+            if (fs.existsSync(vizvibeMdPath)) {
+                vizvibeContent = fs.readFileSync(vizvibeMdPath, 'utf-8');
+            }
+        }
+        
+        // Fallback: try to read from workspace's shared/templates
+        if (!vizvibeContent) {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders) {
+                const templatePath = path.join(workspaceFolders[0].uri.fsPath, 'shared', 'templates', 'VIZVIBE.md');
+                if (fs.existsSync(templatePath)) {
+                    vizvibeContent = fs.readFileSync(templatePath, 'utf-8');
+                }
+            }
+        }
+
+        // If still no content, use a minimal fallback
+        if (!vizvibeContent) {
+            console.log('VIZVIBE.md not found, using minimal rules');
+            vizvibeContent = getMinimalVizVibeRules();
+        }
+
+        // Create the rule block with scope prefix
+        const vizvibeRule = `
+## Viz Vibe: Context Management (Auto-added by Viz Vibe extension)
+
+> **⚠️ SCOPE**: Only apply these rules in repositories where \`vizvibe.mmd\` exists in the project root.
+> If \`vizvibe.mmd\` does not exist, ignore this entire section.
+
+---
+
+${vizvibeContent}
+`;
+
+        // Ensure .gemini directory exists
+        if (!fs.existsSync(geminiDir)) {
+            fs.mkdirSync(geminiDir, { recursive: true });
+        }
+
+        let existingContent = '';
+        if (fs.existsSync(geminiPath)) {
+            existingContent = fs.readFileSync(geminiPath, 'utf-8');
+        }
+
+        // Check if new vizvibe rule already exists
+        if (existingContent.includes('Viz Vibe: Context Management')) {
+            console.log('Viz Vibe rules already in GEMINI.md');
+            return;
+        }
+
+        // Remove old MCP-based rule if exists
+        if (existingContent.includes('Viz Vibe: Trajectory Management')) {
+            existingContent = existingContent.replace(
+                /\n## Viz Vibe: Trajectory Management[\s\S]*?(?=\n## |\n# |$)/,
+                ''
+            );
+            console.log('Removed old Viz Vibe MCP rules');
+        }
+
+        // Append new vizvibe rules
+        const newContent = existingContent.trim() + '\n' + vizvibeRule;
+        fs.writeFileSync(geminiPath, newContent, 'utf-8');
+        console.log('Added Viz Vibe rules (full VIZVIBE.md) to global GEMINI.md');
+    } catch (error) {
+        console.error('Failed to update global GEMINI.md:', error);
+    }
 }
+
+/**
+ * Minimal fallback rules when VIZVIBE.md is not found
+ */
+function getMinimalVizVibeRules(): string {
+    return `# Viz Vibe Trajectory Guide
+
+## File Location
+- **Trajectory file**: \`./vizvibe.mmd\` (project root)
+
+## At conversation start:
+Read \`vizvibe.mmd\` to understand project context and history.
+
+## After completing significant work:
+Update \`vizvibe.mmd\` with the work done.
+
+## Node Format
+\`\`\`mermaid
+%% @node_id [type, state]: Description
+node_id["Label<br/><sub>Details</sub>"]
+previous_node --> node_id
+style node_id fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd,stroke-width:1px
+\`\`\`
+
+**Types:** \`start\`, \`ai-task\`, \`human-task\`, \`condition\`, \`blocker\`, \`end\`
+**States:** \`opened\` (TODO), \`closed\` (DONE)
+
+**Styles (GitHub-inspired):**
+- Open tasks (green): \`fill:#1a1a2e,stroke:#4ade80,color:#86efac\`
+- Closed tasks (purple): \`fill:#1a1a2e,stroke:#a78bfa,color:#c4b5fd\`
+- Last active (bright purple): \`fill:#2d1f4e,stroke:#c084fc,color:#e9d5ff\`
+`;
+}
+
+/**
+ * Check if the current environment is Antigravity.
+ * GEMINI.md should only be updated in Antigravity, not in VS Code or Cursor.
+ */
+function isAntigravity(): boolean {
+    const appName = vscode.env.appName.toLowerCase();
+    return appName.includes('antigravity');
+}
+
+async function setDefaultEditorForMmd() {
+    try {
+        const config = vscode.workspace.getConfiguration('workbench');
+        const currentAssociations = config.get<Record<string, string>>('editorAssociations') || {};
+        
+        // Check if already set
+        if (currentAssociations['*.mmd'] === 'vizVibe.vizflowEditor') {
+            return;
+        }
+        
+        // Set Viz Vibe as default editor for .mmd files
+        const newAssociations = {
+            ...currentAssociations,
+            '*.mmd': 'vizVibe.vizflowEditor'
+        };
+        
+        await config.update('editorAssociations', newAssociations, vscode.ConfigurationTarget.Global);
+        console.log('Set Viz Vibe as default editor for .mmd files');
+    } catch (error) {
+        console.error('Failed to set default editor for .mmd:', error);
+    }
+}
+
+export function deactivate() { }

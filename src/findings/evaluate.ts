@@ -365,6 +365,46 @@ function appendDocStaleness(
   }
 }
 
+function appendTrajectoryHealth(
+  findings: FindingInstance[],
+  config: RepoConfig,
+  bundle: SnapshotBundle,
+  allowlistRules: AllowlistRule[],
+): void {
+  if (!bundle.trajectory) {
+    return;
+  }
+
+  const blockedNodes = bundle.trajectory.nodes.filter(n => n.status === 'blocked');
+  if (blockedNodes.length > 0) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M10-001",
+      metric: "M10",
+      summary: `Blocked trajectory nodes (${blockedNodes.length}): ${blockedNodes.map(n => n.id).slice(0, 3).join(', ')}${blockedNodes.length > 3 ? '...' : ''}`,
+      path: "trajectory:nodes",
+    });
+  }
+
+  const staleThreshold = config.thresholds.staleDays || 10;
+  const updatedAt = new Date(bundle.trajectory.meta.updatedAt);
+  
+  if (Number.isNaN(updatedAt.getTime())) {
+    return;
+  }
+
+  const now = new Date();
+  const daysOld = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (daysOld >= staleThreshold) {
+    addFinding(findings, config, allowlistRules, {
+      code: "WD-M10-002",
+      metric: "M10",
+      summary: `Stale trajectory graph (${Math.floor(daysOld)}d since last update)`,
+      path: "trajectory:graph",
+    });
+  }
+}
+
 export function evaluateFindings(
   config: RepoConfig,
   bundle: SnapshotBundle,
@@ -380,6 +420,7 @@ export function evaluateFindings(
   appendRuntime(findings, config, bundle, allowlistRules);
   appendCoverage(findings, config, bundle, allowlistRules);
   appendDocStaleness(findings, config, bundle, allowlistRules);
+  appendTrajectoryHealth(findings, config, bundle, allowlistRules);
 
   return findings;
 }

@@ -5,6 +5,9 @@ import { loadRepoConfigs } from "../config/loader.js";
 import { listCodes, lookupCode } from "../findings/registry.js";
 import { listSnapshotTimestamps } from "../snapshots.js";
 
+import { TrajectoryStore } from "../work/trajectory-store.js";
+import { exportMermaidTrajectory } from "../work/trajectory-vizvibe.js";
+
 async function readLatestReport(slug: string): Promise<string> {
   const reportsDir = path.resolve(process.cwd(), "data", slug, "reports");
   const entries = await readdir(reportsDir, { withFileTypes: true });
@@ -114,6 +117,18 @@ async function readPullRequests(slug: string): Promise<string> {
   }
 }
 
+async function readTrajectory(slug: string): Promise<string> {
+  const store = new TrajectoryStore(slug);
+  const graph = await store.load();
+  return JSON.stringify(graph, null, 2);
+}
+
+async function readTrajectoryMermaid(slug: string): Promise<string> {
+  const store = new TrajectoryStore(slug);
+  const graph = await store.load();
+  return exportMermaidTrajectory(graph);
+}
+
 interface RepoUriHandler {
   pattern: RegExp;
   read: (slug: string) => Promise<string>;
@@ -139,6 +154,14 @@ const repoUriHandlers: RepoUriHandler[] = [
   {
     pattern: /^warden:\/\/repos\/([^/]+)\/pull-requests$/,
     read: readPullRequests,
+  },
+  {
+    pattern: /^warden:\/\/repos\/([^/]+)\/trajectory$/,
+    read: readTrajectory,
+  },
+  {
+    pattern: /^warden:\/\/repos\/([^/]+)\/trajectory\/mermaid$/,
+    read: readTrajectoryMermaid,
   },
 ];
 

@@ -7,7 +7,8 @@ export type FindingMetric =
   | "M6"
   | "M7"
   | "M8"
-  | "M9";
+  | "M9"
+  | "M10";
 
 export interface FindingCodeDef {
   code: string;

@@ -19,6 +19,7 @@ import { dispatch } from "../notifications/dispatcher.js";
 import { getDashboardBaseUrl } from "../notifications/utils.js";
 import type { CommandRunner } from "./command-runner.js";
 import type { DashboardWebSocketHub } from "./websocket.js";
+import { TrajectoryStore } from "../work/trajectory-store.js";
 
 const COMMANDS = ["collect", "analyze", "report"] as const;
 
@@ -317,6 +318,21 @@ function registerNotificationRoutes(router: Router): void {
   });
 }
 
+function registerTrajectoryRoutes(router: Router): void {
+  router.get("/repo/:slug/trajectory", async (req, res) => {
+    const slug = await ensureValidSlug(req, res);
+    if (!slug) return;
+
+    try {
+      const store = new TrajectoryStore(slug);
+      const graph = await store.load();
+      res.json(graph);
+    } catch (error) {
+      res.status(404).json({ error: (error as Error).message });
+    }
+  });
+}
+
 export function createDashboardApiRouter(
   commandRunner: CommandRunner,
   wsHub: DashboardWebSocketHub,
@@ -326,5 +342,6 @@ export function createDashboardApiRouter(
   registerWorkRoutes(router, wsHub);
   registerFindingsRoute(router);
   registerNotificationRoutes(router);
+  registerTrajectoryRoutes(router);
   return router;
 }

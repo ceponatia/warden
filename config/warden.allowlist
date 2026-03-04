@@ -1,0 +1,8 @@
+# warden allowlist
+# Lines under each [CODE] block are suppressed paths (or path:symbol).
+
+[WD-M2-002]
+# src/legacy/keep-for-reference.ts
+
+[WD-M6-002]
+# src/safe-interop.ts:externalPayload

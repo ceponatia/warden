@@ -132,9 +132,10 @@ function normalizeOptionalEnvString(value: unknown): string | undefined {
 function normalizeEmailConfig(
   raw?: RawEmailConfig,
 ): EmailChannel["config"] | null {
-  const recipients = asStringArray(raw?.recipients).map((value) =>
-    resolveEnvReference(value),
-  );
+  const recipients = asStringArray(raw?.recipients)
+    .map((value) => resolveEnvReference(value))
+    .filter((value) => value.length > 0);
+
   if (recipients.length === 0) {
     return null;
   }
