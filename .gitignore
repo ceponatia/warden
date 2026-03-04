@@ -14,3 +14,4 @@ coverage/
 vitest.config.ts.timestamp-*
 .omc/
 .audit-*/
+~/projects/dev-docs/
