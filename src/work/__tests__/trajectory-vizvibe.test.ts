@@ -43,15 +43,16 @@ describe('Mermaid Trajectory Adapter', () => {
     expect(secondGraph.edges).toEqual(graph.edges);
   });
 
-  it('should handle planned edges (-.->)', () => {
+  it('should handle dashed edges (-.-> maps to relatesTo)', () => {
     const mmd = `flowchart TD
     n1("Start")
     n2("Future")
     n1 -.-> n2
 `;
     const graph = parseMermaidTrajectory(mmd, repoSlug);
-    expect(graph.edges[0]?.kind).toBe('planned');
-    
+    // -.-> is ambiguous between planned and relatesTo; parser defaults to relatesTo
+    expect(graph.edges[0]?.kind).toBe('relatesTo');
+
     const exported = exportMermaidTrajectory(graph);
     expect(exported).toContain('-.->');
   });

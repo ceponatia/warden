@@ -135,3 +135,28 @@ export async function pushBranchAndCreatePullRequest(params: {
     number: pr.data.number,
   };
 }
+
+export async function fetchPrDetails(
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<{ title: string; body: string | null }> {
+  const client = await createGithubClient();
+  const { data: pr } = await client.pulls.get({
+    owner, repo, pull_number: prNumber,
+  });
+  return { title: pr.title, body: pr.body };
+}
+
+export async function fetchPrDiff(
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<string> {
+  const client = await createGithubClient();
+  const { data } = await client.pulls.get({
+    owner, repo, pull_number: prNumber,
+    mediaType: { format: "diff" },
+  });
+  return data as unknown as string;
+}

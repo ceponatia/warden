@@ -12,7 +12,7 @@ export interface ProviderCallOptions {
   maxTokens?: number;
 }
 
-function resolveProviderConfig(): ProviderConfig {
+export function resolveProviderConfig(): ProviderConfig {
   const rawProvider = process.env["WARDEN_AI_PROVIDER"] ?? "github";
   if (
     rawProvider !== "openai" &&
@@ -33,7 +33,7 @@ function resolveProviderConfig(): ProviderConfig {
         "OPENAI_API_KEY environment variable is required for the openai provider.",
       );
     }
-    const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-4o";
+    const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-5.3-codex";
     return { provider, model, apiKey };
   }
 
@@ -44,18 +44,18 @@ function resolveProviderConfig(): ProviderConfig {
         "ANTHROPIC_API_KEY environment variable is required for the anthropic provider.",
       );
     }
-    const model = process.env["WARDEN_AI_MODEL"] ?? "claude-3-5-sonnet-20241022";
+    const model = process.env["WARDEN_AI_MODEL"] ?? "claude-4-6-opus";
     return { provider, model, apiKey };
   }
 
-  // GitHub Models provider (free tier)
+  // GitHub Models provider (Pro tier)
   const apiKey = process.env["GITHUB_TOKEN"] ?? process.env["WARDEN_GITHUB_TOKEN"];
   if (!apiKey) {
     throw new Error(
       "GITHUB_TOKEN or WARDEN_GITHUB_TOKEN is required for the github provider.",
     );
   }
-  const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-4o-mini";
+  const model = process.env["WARDEN_AI_MODEL"] ?? "gpt-5.3-codex";
   return { provider, model, apiKey };
 }
 

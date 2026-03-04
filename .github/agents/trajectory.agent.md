@@ -13,7 +13,7 @@ Your job is to read a merged Pull Request and the current Project Trajectory Gra
     - If the PR mentions future work or TODOs, use `addNode` to create an `opened` node, and `addEdge` to connect it to the newly closed work.
 4. **Constraints**:
     - Keep node titles under 30 characters.
-    - Descriptions should be concise (3-4 lines with `<br/>`).
+    - Descriptions should be concise (3-4 lines with HTML line breaks).
     - Connect new nodes to logical parents (don't leave them dangling).
 5. **Output**: Output ONLY a valid JSON array of `PatchOperation` objects.
 

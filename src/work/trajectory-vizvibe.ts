@@ -1,5 +1,16 @@
 import { TrajectoryGraph, TrajectoryNode, TrajectoryEdge, TrajectoryNodeStatus } from '../types/trajectory.js';
 
+function edgeKindToArrow(kind: string): string {
+  switch (kind) {
+    case "planned":    return "-.->";
+    case "relatesTo":  return "-.->";
+    case "supersedes": return "==>";
+    case "blocks":     return "-->";
+    case "dependsOn":  return "-->";
+    default:           return "-->";
+  }
+}
+
 export function parseMermaidTrajectory(mmd: string, repoSlug: string): TrajectoryGraph {
   const lines = mmd.split('\n');
   const nodes: TrajectoryNode[] = [];
@@ -46,6 +57,7 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
         findingRefs: [],
         workRefs: [],
         tags: [],
+        affectsModules: [],
         metadata: meta?.author ? { author: meta.author } : {},
       });
       continue;
@@ -56,7 +68,8 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
       edges.push({
         from: edgeMatch[1],
         to: edgeMatch[3],
-        kind: line.includes('-.->') ? 'planned' : 'blocks',
+        // Note: round-tripping 'planned' converts to 'relatesTo' (both use -.-> arrow) — known limitation
+        kind: line.includes('==>') ? 'supersedes' : line.includes('-.->') ? 'relatesTo' : 'blocks',
         metadata: {},
       });
     }
@@ -86,17 +99,53 @@ export function exportMermaidTrajectory(graph: TrajectoryGraph): string {
   
   mmd += '\n';
 
-  // 2. Nodes
+  // 2. Nodes with rich descriptions
   for (const node of graph.nodes) {
-    mmd += `    ${node.id}("${node.title}")\n`;
+    let content = node.title;
+    const desc = node.metadata?.description;
+    if (desc && typeof desc === 'string') {
+      content += `<br/><sub>${desc}</sub>`;
+    }
+    mmd += `    ${node.id}("${content}")\n`;
   }
 
   mmd += '\n';
 
   // 3. Edges
   for (const edge of graph.edges) {
-    const arrow = edge.kind === 'planned' ? '-.->' : '-->';
+    const arrow = edgeKindToArrow(edge.kind);
     mmd += `    ${edge.from} ${arrow} ${edge.to}\n`;
+  }
+
+  mmd += '\n';
+
+  // 4. Styles (The "Vibe")
+  for (const node of graph.nodes) {
+    let fill = '#1a1a2e';
+    let stroke = '#a78bfa';
+    let color = '#c4b5fd';
+    let strokeWidth = '1px';
+
+    if (node.status === 'opened') {
+      stroke = '#4ade80';
+      color = '#86efac';
+    } else if (node.status === 'blocked') {
+      stroke = '#f87171';
+      color = '#fca5a5';
+    } else if (node.status === 'deferred') {
+      stroke = '#94a3b8';
+      color = '#cbd5e1';
+    }
+
+    // Highlight the last active node
+    if (node.id === graph.meta.lastActiveNodeId) {
+      fill = '#2d1f4e';
+      stroke = '#c084fc';
+      color = '#e9d5ff';
+      strokeWidth = '2px';
+    }
+
+    mmd += `    style ${node.id} fill:${fill},stroke:${stroke},color:${color},stroke-width:${strokeWidth}\n`;
   }
 
   return mmd;

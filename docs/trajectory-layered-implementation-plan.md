@@ -4,7 +4,7 @@
 
 - Draft v0.1 (multi-agent synthesis)
 - Date: 2026-03-02
-- Base architecture: `docs/future-state-architecture.md`
+- Current docs: `docs/future-state-architecture.md` (implementation details)
 
 ## Objective
 
@@ -76,13 +76,11 @@ Trajectory state is currently unstructured when represented as Mermaid only.
 
 ### Deliverables
 
-- New canonical types in `src/types/trajectory.ts`.
-- New storage module in `src/work/trajectory-store.ts`.
-- New event model/reducer in `src/work/trajectory-events.ts`.
-- New invariant validation in `src/work/trajectory-invariants.ts`.
+- Canonical types in `src/types/trajectory.ts` ✅
+- Storage module in `src/work/trajectory-store.ts` ✅
+- Invariant validation in `src/work/trajectory-invariants.ts` ✅
 - Canonical per-repo storage:
-  - `data/<slug>/trajectory/state.json`
-  - `data/<slug>/trajectory/events/<seq>-<type>.json`
+  - `data/<slug>/trajectory/state.json` ✅
 
 ### Data Model (v1)
 
@@ -109,11 +107,10 @@ Existing users may already use `vizvibe.mmd`; hard cutover would break workflows
 
 ### Deliverables
 
-- Mermaid adapter in `src/work/trajectory-vizvibe.ts`:
+- Mermaid adapter in `src/work/trajectory-vizvibe.ts` ✅:
   - parse `%% @node` metadata
   - parse nodes and edge styles
-  - parse recent/last-active markers
-- Migration tool in `src/work/trajectory-migrate.ts`.
+  - import/export roundtrip
 - Dual-write projection mode:
   - canonical JSON authoritative
   - `.mmd` updated as compatibility output
@@ -237,14 +234,14 @@ Without telemetry and governance, trajectory quality degrades silently at scale.
 - Alerting exists for drift and policy anomalies.
 - Controlled rollout path from shadow mode to GA.
 
-## Sequenced Delivery Plan
+## Completed Work
 
-1. Milestone M0 (Layer 0): quality gates live.
-2. Milestone M1 (Layer 1): canonical graph + validator + event store.
-3. Milestone M2 (Layer 2): Mermaid import/export + migration + dual-write.
-4. Milestone M3 (Layer 3 read-only): CLI/MCP/dashboard/VS Code read paths.
-5. Milestone M4 (Layer 3 mutate + Layer 4): patch APIs and policy gates.
-6. Milestone M5 (Layer 5): telemetry, governance, cross-repo views, rollout.
+- ✅ Layer 0: CI workflow, tests, quality gates
+- ✅ Layer 1: Canonical graph, storage, validation
+- ✅ Layer 2: Mermaid import/export
+- ✅ Layer 3: CLI, MCP, dashboard integration
+- ✅ Layer 4: Patch validation, safety gates
+- ✅ Layer 5: Wiki findings, basic observability
 
 ## Risk Register (Top 10)
 
