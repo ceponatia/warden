@@ -12,9 +12,14 @@ export interface ProjectStateLensOptions {
 export async function generateProjectStateLens(
   graph: TrajectoryGraph,
 ): Promise<string> {
-  const agentPromptPath = path.join(process.cwd(), ".github", "agents", "trajectory-telescope.agent.md");
+  const agentPromptPath = path.join(
+    process.cwd(),
+    ".github",
+    "agents",
+    "trajectory-telescope.agent.md",
+  );
   const systemPrompt = await fs.readFile(agentPromptPath, "utf-8");
-  
+
   const userPrompt = `
 FULL PROJECT TRAJECTORY (JSON):
 ${JSON.stringify(graph, null, 2)}
@@ -34,9 +39,14 @@ export async function generateLocalImpactLens(
   prTitle: string,
   prBody: string,
 ): Promise<string> {
-  const agentPromptPath = path.join(process.cwd(), ".github", "agents", "trajectory-microscope.agent.md");
+  const agentPromptPath = path.join(
+    process.cwd(),
+    ".github",
+    "agents",
+    "trajectory-microscope.agent.md",
+  );
   const systemPrompt = await fs.readFile(agentPromptPath, "utf-8");
-  
+
   const userPrompt = `
 PR Title: ${prTitle}
 PR Body: ${prBody || "None"}
@@ -83,4 +93,3 @@ export function pruneArchive(
     removedCount: graph.nodes.length - nodes.length,
   };
 }
-

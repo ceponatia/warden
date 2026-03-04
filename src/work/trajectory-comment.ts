@@ -1,5 +1,8 @@
 import { TrajectoryStore } from "./trajectory-store.js";
-import { generateProjectStateLens, generateLocalImpactLens } from "./trajectory-lenses.js";
+import {
+  generateProjectStateLens,
+  generateLocalImpactLens,
+} from "./trajectory-lenses.js";
 import { renderTrajectoryComment } from "./trajectory-comment-renderer.js";
 import { upsertTrajectoryComment } from "../github/comment.js";
 import { fetchPrDetails, fetchPrDiff } from "../github/pr.js";
@@ -17,7 +20,7 @@ export async function postTrajectoryCommentOnPr(
 ): Promise<void> {
   const store = new TrajectoryStore(repoSlug);
   const graph = await store.load();
-  
+
   const providerConfig = resolveProviderConfig();
 
   // 1. Generate Project State lens (always)
@@ -32,7 +35,10 @@ export async function postTrajectoryCommentOnPr(
         fetchPrDiff(owner, repo, prNumber),
       ]);
       localImpactMmd = await generateLocalImpactLens(
-        graph, prDiff, prDetails.title, prDetails.body ?? "",
+        graph,
+        prDiff,
+        prDetails.title,
+        prDetails.body ?? "",
       );
     } catch (error) {
       console.error("Failed to generate Local Impact lens:", error);
