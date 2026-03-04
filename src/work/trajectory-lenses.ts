@@ -9,13 +9,6 @@ export interface ProjectStateLensOptions {
   collapseByTag: boolean;
 }
 
-const STATUS_PRIORITY: Record<string, number> = {
-  opened: 0,
-  blocked: 1,
-  deferred: 2,
-  closed: 3,
-};
-
 export async function generateProjectStateLens(
   graph: TrajectoryGraph,
 ): Promise<string> {
@@ -91,11 +84,3 @@ export function pruneArchive(
   };
 }
 
-function buildAdjacency(graph: TrajectoryGraph): Map<string, string[]> {
-  const adj = new Map<string, string[]>();
-  for (const edge of graph.edges) {
-    adj.set(edge.from, [...(adj.get(edge.from) ?? []), edge.to]);
-    adj.set(edge.to, [...(adj.get(edge.to) ?? []), edge.from]);
-  }
-  return adj;
-}

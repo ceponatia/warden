@@ -1,6 +1,5 @@
 import { TrajectoryStore } from "./trajectory-store.js";
-import { generateProjectStateLens, generateLocalImpactLens, generateTrajectorySummary } from "./trajectory-lenses.js";
-import { exportMermaidTrajectory } from "./trajectory-vizvibe.js";
+import { generateProjectStateLens, generateLocalImpactLens } from "./trajectory-lenses.js";
 import { renderTrajectoryComment } from "./trajectory-comment-renderer.js";
 import { upsertTrajectoryComment } from "../github/comment.js";
 import { fetchPrDetails, fetchPrDiff } from "../github/pr.js";

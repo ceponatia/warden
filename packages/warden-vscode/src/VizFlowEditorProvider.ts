@@ -47,8 +47,9 @@ export class VizFlowEditorProvider
   public async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
-    _token: vscode.CancellationToken,
+        token: vscode.CancellationToken,
   ): Promise<void> {
+        void token;
     webviewPanel.webview.options = { enableScripts: true };
     webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
@@ -113,6 +114,7 @@ export class VizFlowEditorProvider
   }
 
   private getHtmlForWebview(webview: vscode.Webview): string {
+        void webview;
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -2195,7 +2197,6 @@ export class VizFlowEditorProvider
   }
 
   private async launchAgent(agentId: string): Promise<void> {
-    const config = vscode.workspace.getConfiguration("vizVibe");
     const agentMap: Record<
       string,
       {
@@ -2412,7 +2413,7 @@ class CodexRunner {
       throw new Error("Codex app-server not ready.");
     }
     this.output.appendLine("[codex] sending prompt");
-    const result = await this.rpc.request("turn/start", {
+        const result = await this.rpc.request<Record<string, unknown>>("turn/start", {
       threadId: this.threadId,
       thread_id: this.threadId,
       input: [{ type: "text", text: prompt }],
@@ -2420,10 +2421,11 @@ class CodexRunner {
       approval_policy: "on-request",
       sandbox_policy: "workspace-write",
     });
-    const turnId = result?.turn_id ?? result?.turnId ?? null;
-    if (!turnId || typeof turnId !== "string") {
+        const turnIdRaw = result.turn_id ?? result.turnId;
+        if (typeof turnIdRaw !== "string") {
       return null;
     }
+        const turnId = turnIdRaw;
     this.turnId = turnId;
     this.output.appendLine(`[codex] turn started id=${turnId}`);
 
@@ -2499,40 +2501,55 @@ class CodexRunner {
     });
     rpc.notify("initialized", {});
 
-    const auth = await rpc.request("getAuthStatus", {
+        const auth = await rpc.request<Record<string, unknown>>("getAuthStatus", {
       includeToken: true,
       refreshToken: false,
     });
-    const requiresAuth =
-      auth?.requires_openai_auth ?? auth?.requiresOpenaiAuth ?? true;
-    const authMethod = auth?.auth_method ?? auth?.authMethod;
+        const requiresAuth =
+            (auth.requires_openai_auth ?? auth.requiresOpenaiAuth ?? true) === true;
+        const authMethod = auth.auth_method ?? auth.authMethod;
     if (requiresAuth && !authMethod) {
       throw new Error("Codex authentication required");
     }
 
-    const thread = await rpc.request("thread/start", {
+        const thread = await rpc.request<Record<string, unknown>>("thread/start", {
       cwd: this.cwd,
       approval_policy: "on-request",
       sandbox_policy: "workspace-write",
     });
+        const nestedThread =
+            thread.thread && typeof thread.thread === "object"
+                ? (thread.thread as Record<string, unknown>)
+                : {};
     const threadId =
-      thread?.thread_id ??
-      thread?.threadId ??
-      thread?.thread?.id ??
-      thread?.thread?.thread_id ??
-      thread?.thread?.threadId;
+            thread.thread_id ??
+            thread.threadId ??
+            nestedThread.id ??
+            nestedThread.thread_id ??
+            nestedThread.threadId;
     if (!threadId) {
       throw new Error("Codex missing thread id");
     }
-    this.threadId = threadId;
+        if (typeof threadId !== "string") {
+            throw new Error("Codex missing thread id");
+        }
+        this.threadId = threadId;
     this.output.appendLine(`[codex] ready thread=${threadId}`);
   }
 
-  private handleRpcMessage(msg: any): void {
-    const method = msg?.method;
+    private handleRpcMessage(msg: Record<string, unknown>): void {
+        const method = typeof msg.method === "string" ? msg.method : undefined;
     if (method === "codex/event/task_complete") {
-      const turnId = msg?.params?.id ?? msg?.params?.msg?.turn_id;
-      const response = msg?.params?.msg?.last_agent_message;
+            const params =
+                msg.params && typeof msg.params === "object"
+                    ? (msg.params as Record<string, unknown>)
+                    : {};
+            const nested =
+                params.msg && typeof params.msg === "object"
+                    ? (params.msg as Record<string, unknown>)
+                    : {};
+            const turnId = params.id ?? nested.turn_id;
+            const response = nested.last_agent_message;
       this.resolvePendingTurn(
         turnId,
         typeof response === "string" ? response : null,
@@ -2541,8 +2558,16 @@ class CodexRunner {
     }
 
     if (method === "codex/event/error") {
-      const turnId = msg?.params?.id ?? msg?.params?.msg?.turn_id;
-      const message = msg?.params?.msg?.message;
+            const params =
+                msg.params && typeof msg.params === "object"
+                    ? (msg.params as Record<string, unknown>)
+                    : {};
+            const nested =
+                params.msg && typeof params.msg === "object"
+                    ? (params.msg as Record<string, unknown>)
+                    : {};
+            const turnId = params.id ?? nested.turn_id;
+            const message = nested.message;
       if (typeof message === "string") {
         this.rejectPendingTurn(turnId, new Error(message));
       }
@@ -2550,11 +2575,27 @@ class CodexRunner {
     }
 
     if (method === "turn/completed") {
-      const turn = msg?.params?.turn;
-      if (turn?.status === "failed") {
+            const params =
+                msg.params && typeof msg.params === "object"
+                    ? (msg.params as Record<string, unknown>)
+                    : {};
+            const turn =
+                params.turn && typeof params.turn === "object"
+                    ? (params.turn as Record<string, unknown>)
+                    : null;
+            const status = turn?.status;
+            if (status === "failed") {
+                const errorObj =
+                    turn?.error && typeof turn.error === "object"
+                        ? (turn.error as Record<string, unknown>)
+                        : {};
         this.rejectPendingTurn(
-          turn?.id,
-          new Error(turn?.error?.message ?? "Codex turn failed."),
+                    turn?.id,
+                    new Error(
+                        typeof errorObj.message === "string"
+                            ? errorObj.message
+                            : "Codex turn failed.",
+                    ),
         );
       }
     }
@@ -2591,20 +2632,23 @@ class JsonRpcClient {
   private nextId = 1;
   private pending = new Map<
     string,
-    { resolve: (v: any) => void; reject: (e: Error) => void }
+        { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
 
   constructor(
     private write: (line: string) => void,
-    private onMessage: (msg: any) => void,
+        private onMessage: (msg: Record<string, unknown>) => void,
   ) {}
 
-  request(method: string, params?: unknown) {
+    request<T = unknown>(method: string, params?: unknown): Promise<T> {
     const id = String(this.nextId++);
     const payload = { jsonrpc: "2.0", id, method, params };
     this.write(JSON.stringify(payload));
-    return new Promise<any>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+        return new Promise<T>((resolve, reject) => {
+            this.pending.set(id, {
+                resolve: (value) => resolve(value as T),
+                reject,
+            });
     });
   }
 
@@ -2617,32 +2661,42 @@ class JsonRpcClient {
     const msg = safeJsonParse(line);
     if (!msg) return;
 
-    if (msg.id !== undefined && msg.method) {
-      this.onMessage(msg);
+        if (typeof msg !== "object") return;
+        const message = msg as Record<string, unknown>;
+
+        if (message.id !== undefined && message.method) {
+            this.onMessage(message);
       return;
     }
 
-    if (msg.id !== undefined) {
-      const key = String(msg.id);
+        if (message.id !== undefined) {
+            const key = String(message.id);
       const pending = this.pending.get(key);
       if (!pending) return;
       this.pending.delete(key);
 
-      if (msg.error) {
-        pending.reject(new Error(msg.error.message ?? "JSON-RPC error"));
+            if (message.error && typeof message.error === "object") {
+                const errorObj = message.error as Record<string, unknown>;
+                pending.reject(
+                    new Error(
+                        typeof errorObj.message === "string"
+                            ? errorObj.message
+                            : "JSON-RPC error",
+                    ),
+                );
       } else {
-        pending.resolve(msg.result);
+                pending.resolve(message.result as unknown);
       }
       return;
     }
 
-    if (msg.method) {
-      this.onMessage(msg);
+        if (message.method) {
+            this.onMessage(message);
     }
   }
 }
 
-function safeJsonParse(line: string): any | null {
+function safeJsonParse(line: string): unknown | null {
   try {
     return JSON.parse(line);
   } catch {
