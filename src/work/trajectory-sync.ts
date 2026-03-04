@@ -3,6 +3,7 @@ import { callProvider } from "../agents/provider.js";
 import { TrajectoryStore } from "./trajectory-store.js";
 import { exportMermaidTrajectory } from "./trajectory-vizvibe.js";
 import { pruneArchive } from "./trajectory-lenses.js";
+import { loadRepoConfigs, getRepoConfigBySlug } from "../config/loader.js";
 import type { PatchOperation } from "../types/trajectory.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +14,17 @@ export async function syncTrajectoryWithPullRequest(
   prNumber: number,
   repoSlug: string,
 ): Promise<void> {
+  const configs = await loadRepoConfigs();
+  const repoConfig = getRepoConfigBySlug(configs, repoSlug);
+  const aiEnabled = repoConfig.trajectory?.aiEnrichment === true;
+
+  if (!aiEnabled) {
+    console.log(
+      `AI trajectory sync disabled for ${repoSlug}. Enable via \`trajectory.aiEnrichment\` in repo config.`,
+    );
+    return;
+  }
+
   const octokit = await createGithubClient();
   const store = new TrajectoryStore(repoSlug);
   

@@ -14,10 +14,7 @@ interface TrajectoryContext {
   repoSlug: string;
 }
 
-const handlers: Record<
-  string,
-  (ctx: TrajectoryContext) => Promise<void>
-> = {
+const handlers: Record<string, (ctx: TrajectoryContext) => Promise<void>> = {
   async init({ store, repoSlug }) {
     await store.init();
     console.log(`Initialized trajectory for repo "${repoSlug}"`);
@@ -138,6 +135,7 @@ const handlers: Record<
       repoSlug,
       {
         includeLocalImpact: true,
+        triggeredBy: "manual",
       },
     );
     console.log(

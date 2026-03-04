@@ -50,6 +50,11 @@ export interface AgentSchedulerConfig {
   priorityOrder?: import("./findings.js").FindingMetric[];
 }
 
+export interface TrajectoryConfig {
+  aiEnrichment?: boolean;
+  diffDenyPatterns?: string[];
+}
+
 export interface RepoConfig {
   slug: string;
   path: string;
@@ -65,6 +70,7 @@ export interface RepoConfig {
   retention: RepoRetention;
   commitThreshold: number;
   scheduler?: AgentSchedulerConfig;
+  trajectory?: TrajectoryConfig;
   suppressions?: RepoSuppression[];
 }
 
