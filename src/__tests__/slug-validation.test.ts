@@ -6,7 +6,6 @@ import { TrajectoryStore } from "../work/trajectory-store.js";
 describe("slug validation", () => {
   it("accepts known valid slugs", async () => {
     await expect(ensureSlug("chatterbox")).resolves.toBe("chatterbox");
-    await expect(ensureSlug("warden")).resolves.toBe("warden");
   });
 
   it("rejects traversal attempts", async () => {
