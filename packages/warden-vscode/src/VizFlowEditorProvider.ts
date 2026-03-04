@@ -2428,12 +2428,15 @@ class CodexRunner {
     this.output.appendLine(`[codex] turn started id=${turnId}`);
 
     return new Promise<string | null>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        const pending = this.pendingTurns.get(turnId);
-        if (!pending) return;
-        this.pendingTurns.delete(turnId);
-        pending.resolve(null);
-      }, 5 * 60 * 1000);
+      const timeout = setTimeout(
+        () => {
+          const pending = this.pendingTurns.get(turnId);
+          if (!pending) return;
+          this.pendingTurns.delete(turnId);
+          pending.resolve(null);
+        },
+        5 * 60 * 1000,
+      );
 
       this.pendingTurns.set(turnId, { resolve, reject, timeout });
     });
