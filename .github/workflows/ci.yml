@@ -8,7 +8,6 @@ on:
 
 jobs:
   build:
-    if: false # temporarily disabled — remove to re-enable CI
     runs-on: ubuntu-latest
 
     steps:
