@@ -18,7 +18,7 @@ import { loadAllTrustMetrics } from "../work/trust.js";
 import type { WorkDocumentStatus } from "../types/work.js";
 import { TrajectoryStore } from "../work/trajectory-store.js";
 import { parseMermaidTrajectory, exportMermaidTrajectory } from "../work/trajectory-vizvibe.js";
-import { PatchOperation } from "../types/trajectory.js";
+import type { PatchOperation } from "../types/trajectory.js";
 import { postTrajectoryCommentOnPr } from "../work/trajectory-comment.js";
 
 function ensureSlug(slug: string | undefined): string {
