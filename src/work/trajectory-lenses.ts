@@ -66,14 +66,14 @@ export function generateProjectStateLens(
         );
         const newestDate = group.reduce(
           (best, n) => (n.updatedAt > best ? n.updatedAt : best),
-          group[0]!.updatedAt,
+          group[0]?.updatedAt ?? new Date().toISOString(),
         );
         collapsed.push({
           id: `group-${tag}`,
           title: `${tag} (${group.length} items)`,
           status: bestStatus as "opened" | "closed" | "blocked" | "deferred",
           type: "group",
-          createdAt: group[0]!.createdAt,
+          createdAt: group[0]?.createdAt ?? new Date().toISOString(),
           updatedAt: newestDate,
           findingRefs: [],
           workRefs: [],
@@ -157,7 +157,8 @@ export async function generateTrajectorySummary(
       maxTokens: 150,
     });
     return summary.trim();
-  } catch {
+  } catch (error) {
+    console.error("Failed to generate trajectory summary:", error);
     return "";
   }
 }
@@ -187,7 +188,8 @@ export async function generateLocalImpactLens(
     if (!Array.isArray(modules) || modules.length === 0) {
       return null;
     }
-  } catch {
+  } catch (error) {
+    console.error("Failed to generate local impact lens:", error);
     return null;
   }
 
