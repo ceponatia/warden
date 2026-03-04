@@ -22,6 +22,8 @@ export const DEFAULT_THRESHOLDS: RepoThresholds = {
   newFileClusterCount: 6,
   lowCoveragePct: 50,
   coverageRegressionPct: 10,
+  trajectoryMaxNodes: 30,
+  trajectoryStaleClosedDays: 90,
 };
 
 export const DEFAULT_RETENTION: RepoRetention = {
@@ -113,6 +115,14 @@ function normalizeThresholds(
     coverageRegressionPct: resolvePositiveNumber(
       source.coverageRegressionPct,
       DEFAULT_THRESHOLDS.coverageRegressionPct,
+    ),
+    trajectoryMaxNodes: resolvePositiveNumber(
+      source.trajectoryMaxNodes,
+      DEFAULT_THRESHOLDS.trajectoryMaxNodes ?? 30,
+    ),
+    trajectoryStaleClosedDays: resolvePositiveNumber(
+      source.trajectoryStaleClosedDays,
+      DEFAULT_THRESHOLDS.trajectoryStaleClosedDays ?? 90,
     ),
   };
 }

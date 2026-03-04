@@ -13,6 +13,7 @@ export const TrajectoryNodeSchema = z.object({
   findingRefs: z.array(z.string()).default([]),
   workRefs: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
+  affectsModules: z.array(z.string()).default([]),
   metadata: z.record(z.string(), z.any()).default({}),
 });
 export type TrajectoryNode = z.infer<typeof TrajectoryNodeSchema>;
@@ -26,7 +27,7 @@ export type NewTrajectoryNode = z.infer<typeof NewTrajectoryNodeSchema>;
 export const TrajectoryEdgeSchema = z.object({
   from: z.string(),
   to: z.string(),
-  kind: z.string().default('blocks'),
+  kind: z.enum(['dependsOn', 'relatesTo', 'supersedes', 'blocks', 'planned']).default('blocks'),
   metadata: z.record(z.string(), z.any()).default({}),
 });
 export type TrajectoryEdge = z.infer<typeof TrajectoryEdgeSchema>;
@@ -40,6 +41,10 @@ export const TrajectoryGraphSchema = z.object({
     lastActiveNodeId: z.string().optional(),
     revision: z.number().default(0),
     updatedAt: z.string().datetime(),
+    archivePolicy: z.object({
+      fullFidelityMonths: z.number().default(6),
+      maxNodes: z.number().default(500),
+    }).optional(),
   }).default({
     revision: 0,
     updatedAt: new Date().toISOString(),

@@ -8,6 +8,8 @@ import {
 } from "../../github/webhook.js";
 import { runAnalyzeCommand } from "./analyze.js";
 import { runCollectCommand } from "./collect.js";
+import { syncTrajectoryWithPullRequest } from "../../work/trajectory-sync.js";
+import { postTrajectoryCommentOnPr } from "../../work/trajectory-comment.js";
 
 const PID_PATH = path.resolve(process.cwd(), "data", "webhook", "webhook.pid");
 
@@ -90,11 +92,28 @@ async function startWebhook(): Promise<void> {
         await runAnalyzeCommand(slug);
       });
     },
-    onPullRequestMerged: async (slug: string) => {
-      await serializeBySlug(slug, async () => {
-        await runCollectCommand(slug);
-        await runAnalyzeCommand(slug);
+    onPullRequestMerged: async (ctx) => {
+      await serializeBySlug(ctx.slug, async () => {
+        await runCollectCommand(ctx.slug);
+        await runAnalyzeCommand(ctx.slug);
+        await syncTrajectoryWithPullRequest(ctx.owner, ctx.repo, ctx.prNumber, ctx.slug);
+        try {
+          await postTrajectoryCommentOnPr(ctx.owner, ctx.repo, ctx.prNumber, ctx.slug, {
+            includeLocalImpact: true,
+          });
+        } catch (error) {
+          console.error("Trajectory comment failed on PR merge:", error);
+        }
       });
+    },
+    onPullRequestOpened: async (ctx) => {
+      try {
+        await postTrajectoryCommentOnPr(ctx.owner, ctx.repo, ctx.prNumber, ctx.slug, {
+          includeLocalImpact: false,
+        });
+      } catch (error) {
+        console.error("Trajectory comment failed on PR open:", error);
+      }
     },
     resolveSlugByRepo,
   });

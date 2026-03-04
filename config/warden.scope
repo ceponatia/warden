@@ -1,0 +1,54 @@
+# Fully ignored -- no metrics at all
+*.log
+*.tsbuildinfo
+.DS_Store
+.env
+.idea/
+.markdownlint-cli2.jsonc
+.next/**
+.vscode/
+build/**
+config/github-webhook.json
+config/github.json
+coverage/
+coverage/**
+data/
+dist/
+dist/**
+node_modules/
+node_modules/**
+out/**
+package-lock.json
+pnpm-lock.yaml
+vitest.config.ts.timestamp-*
+yarn.lock
+
+# Doc files -- size and staleness only (no import checks)
+[metrics: size, staleness]
+AGENTS.md
+README.md
+*.md
+
+# Config files -- staleness only
+[metrics: staleness]
+tsconfig.json
+tsconfig.*.json
+eslint.config.*
+package.json
+components.json
+next.config.*
+postcss.config.*
+next-env.d.ts
+
+# Coverage analysis targets
+[metrics: coverage]
+src/**
+apps/**
+packages/**
+
+# Documentation freshness targets
+[metrics: doc-staleness]
+AGENTS.md
+README.md
+docs/**
+**/*.md

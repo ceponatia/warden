@@ -2,6 +2,7 @@ import { createGithubClient } from "../github/client.js";
 import { callProvider } from "../agents/provider.js";
 import { TrajectoryStore } from "./trajectory-store.js";
 import { exportMermaidTrajectory } from "./trajectory-vizvibe.js";
+import { pruneArchive } from "./trajectory-lenses.js";
 import type { PatchOperation } from "../types/trajectory.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -65,7 +66,21 @@ Return a valid JSON array of PatchOperations to update the trajectory graph base
     console.log(`Applying ${operations.length} patch operations...`);
     await store.patch(`github-pr-${prNumber}`, operations);
 
-    // 6. Re-export Mermaid file
+    // 6. Prune archive if policy is set
+    const postPatchGraph = await store.load();
+    const archivePolicy = postPatchGraph.meta.archivePolicy;
+    if (archivePolicy) {
+      const { pruned, removedCount } = pruneArchive(postPatchGraph, {
+        fullFidelityMonths: archivePolicy.fullFidelityMonths,
+        maxNodes: archivePolicy.maxNodes,
+      });
+      if (removedCount > 0) {
+        console.log(`Pruned ${removedCount} archived nodes from trajectory.`);
+        await store.save(pruned);
+      }
+    }
+
+    // 7. Re-export Mermaid file
     const updatedGraph = await store.load();
     const mmd = exportMermaidTrajectory(updatedGraph);
     await fs.writeFile(path.join(process.cwd(), "vizvibe.mmd"), mmd, "utf-8");

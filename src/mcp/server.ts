@@ -19,6 +19,7 @@ import {
   toolListWorkDocs,
   toolReport,
   toolSnapshotDiff,
+  toolTrajectoryComment,
   toolTrajectoryExport,
   toolTrajectoryGet,
   toolTrajectoryImport,
@@ -400,6 +401,16 @@ function registerTrajectoryTools(server: McpServer): void {
       content: [{ type: "text", text: await toolTrajectoryExport(repo) }],
     }),
   );
+
+  server.registerTool("warden_trajectory_comment", {
+    description: "Post trajectory visualization comment on a PR",
+    inputSchema: z.object({
+      repo: z.string().describe("Repo slug"),
+      pr: z.number().describe("PR number"),
+    }),
+  }, async ({ repo, pr }) => ({
+    content: [{ type: "text", text: await toolTrajectoryComment(repo, String(pr)) }],
+  }));
 }
 
 function createWardenMcpServer(): McpServer {

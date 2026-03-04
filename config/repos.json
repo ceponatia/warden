@@ -3,6 +3,7 @@
     "slug": "chatterbox",
     "path": "/home/brian/projects/chatterbox",
     "type": "typescript/pnpm-monorepo",
+    "source": "local",
     "sourceRoots": [
       "apps",
       "packages"
@@ -55,9 +56,87 @@
     "scopeFile": "config/chatterbox.scope",
     "thresholds": {
       "staleDays": 6,
+      "docStaleDays": 30,
       "highChurnEdits": 5,
+      "correlatedChurnRate": 0.8,
+      "correlatedChurnMinCommits": 3,
       "growthMultiplier": 2,
-      "directoryGrowthPct": 20
-    }
+      "directoryGrowthPct": 20,
+      "highRewriteRatio": 3,
+      "complexityHotspotCount": 5,
+      "largeFileGrowthLines": 300,
+      "lowRouteHitCount": 2,
+      "newFileClusterCount": 6,
+      "lowCoveragePct": 50,
+      "coverageRegressionPct": 10
+    },
+    "retention": {
+      "snapshots": 10,
+      "reports": 10
+    },
+    "commitThreshold": 25,
+    "suppressions": []
+  },
+  {
+    "slug": "warden",
+    "path": "C:\\projects\\warden",
+    "type": "typescript/pnpm-monorepo",
+    "source": "local",
+    "sourceRoots": [
+      "src",
+      "packages"
+    ],
+    "testPatterns": [
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx"
+    ],
+    "docFiles": [
+      "AGENTS.md",
+      "README.md"
+    ],
+    "ignorePatterns": [
+      "node_modules",
+      "dist",
+      ".next",
+      "node_modules/",
+      "data/",
+      "dist/",
+      "*.log",
+      ".DS_Store",
+      ".vscode/",
+      ".idea/",
+      ".env",
+      "config/github.json",
+      "config/github-webhook.json",
+      "package-lock.json",
+      ".markdownlint-cli2.jsonc",
+      "coverage/",
+      "vitest.config.ts.timestamp-*"
+    ],
+    "scopeFile": "config/warden.scope",
+    "thresholds": {
+      "staleDays": 10,
+      "docStaleDays": 30,
+      "highChurnEdits": 5,
+      "correlatedChurnRate": 0.8,
+      "correlatedChurnMinCommits": 3,
+      "growthMultiplier": 2,
+      "directoryGrowthPct": 20,
+      "highRewriteRatio": 3,
+      "complexityHotspotCount": 5,
+      "largeFileGrowthLines": 300,
+      "lowRouteHitCount": 2,
+      "newFileClusterCount": 6,
+      "lowCoveragePct": 50,
+      "coverageRegressionPct": 10
+    },
+    "retention": {
+      "snapshots": 10,
+      "reports": 10
+    },
+    "commitThreshold": 25
   }
 ]

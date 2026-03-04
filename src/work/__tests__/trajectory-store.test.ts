@@ -42,6 +42,7 @@ describe('TrajectoryStore', () => {
       findingRefs: [],
       workRefs: [],
       tags: [],
+      affectsModules: [],
       metadata: {},
     });
 
@@ -55,6 +56,7 @@ describe('TrajectoryStore', () => {
       findingRefs: [],
       workRefs: [],
       tags: [],
+      affectsModules: [],
       metadata: {},
     });
 
@@ -105,6 +107,7 @@ describe('TrajectoryStore', () => {
           findingRefs: [],
           workRefs: [],
           tags: [],
+          affectsModules: [],
           metadata: {},
         }
       },
@@ -118,6 +121,7 @@ describe('TrajectoryStore', () => {
           findingRefs: [],
           workRefs: [],
           tags: [],
+          affectsModules: [],
           metadata: {},
         }
       },
@@ -137,8 +141,8 @@ describe('TrajectoryStore', () => {
     await store.init();
     
     await store.patch('test-actor', [
-      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], metadata: {} } },
-      { type: 'addNode', node: { id: 'n2', title: 'N2', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], metadata: {} } },
+      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], affectsModules: [], metadata: {} } },
+      { type: 'addNode', node: { id: 'n2', title: 'N2', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], affectsModules: [], metadata: {} } },
       { type: 'addEdge', edge: { from: 'n1', to: 'n2', kind: 'blocks', metadata: {} } }
     ]);
 
@@ -151,7 +155,7 @@ describe('TrajectoryStore', () => {
   it('should enforce optimistic concurrency', async () => {
     await store.init();
     await store.patch('actor-1', [
-      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], metadata: {} } }
+      { type: 'addNode', node: { id: 'n1', title: 'N1', status: 'opened', type: 'task', findingRefs: [], workRefs: [], tags: [], affectsModules: [], metadata: {} } }
     ], 0);
 
     // This should fail because revision is now 1

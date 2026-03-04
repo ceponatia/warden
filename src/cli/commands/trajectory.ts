@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import { TrajectoryStore } from "../../work/trajectory-store.js";
 import { parseMermaidTrajectory, exportMermaidTrajectory } from "../../work/trajectory-vizvibe.js";
 import { syncTrajectoryWithPullRequest } from "../../work/trajectory-sync.js";
+import { loadRepoConfigs, getRepoConfigBySlug } from "../../config/loader.js";
+import { postTrajectoryCommentOnPr } from "../../work/trajectory-comment.js";
 
 export async function runTrajectoryCommand(args: string[]): Promise<void> {
   const action = args[0];
@@ -92,8 +94,28 @@ export async function runTrajectoryCommand(args: string[]): Promise<void> {
       await syncTrajectoryWithPullRequest(githubOwner, githubRepo, prNumber, repoSlug);
       break;
     }
+    case "comment": {
+      const prStr = getFlagValue(args, "--pr");
+      if (!prStr) {
+        throw new Error("Missing --pr number. Usage: warden trajectory comment --repo <slug> --pr <number>");
+      }
+      const prNumber = parseInt(prStr, 10);
+      if (Number.isNaN(prNumber)) {
+        throw new Error(`Invalid PR number: ${prStr}`);
+      }
+      const configs = await loadRepoConfigs();
+      const config = getRepoConfigBySlug(configs, repoSlug);
+      if (!config.github) {
+        throw new Error(`Repo "${repoSlug}" has no GitHub config. Only GitHub repos support trajectory comments.`);
+      }
+      await postTrajectoryCommentOnPr(config.github.owner, config.github.repo, prNumber, repoSlug, {
+        includeLocalImpact: true,
+      });
+      console.log(`Posted trajectory comment on PR #${prNumber} for repo "${repoSlug}"`);
+      break;
+    }
     default:
-      throw new Error(`Unknown trajectory action: ${action}. Usage: warden trajectory <init|validate|import|export|patch|sync-pr> --repo <slug>`);
+      throw new Error(`Unknown trajectory action: ${action}. Usage: warden trajectory <init|validate|import|export|patch|sync-pr|comment> --repo <slug>`);
   }
 }
 

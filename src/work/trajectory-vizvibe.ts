@@ -1,5 +1,16 @@
 import { TrajectoryGraph, TrajectoryNode, TrajectoryEdge, TrajectoryNodeStatus } from '../types/trajectory.js';
 
+function edgeKindToArrow(kind: string): string {
+  switch (kind) {
+    case "planned":    return "-.->";
+    case "relatesTo":  return "-.->";
+    case "supersedes": return "==>";
+    case "blocks":     return "-->";
+    case "dependsOn":  return "-->";
+    default:           return "-->";
+  }
+}
+
 export function parseMermaidTrajectory(mmd: string, repoSlug: string): TrajectoryGraph {
   const lines = mmd.split('\n');
   const nodes: TrajectoryNode[] = [];
@@ -46,6 +57,7 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
         findingRefs: [],
         workRefs: [],
         tags: [],
+        affectsModules: [],
         metadata: meta?.author ? { author: meta.author } : {},
       });
       continue;
@@ -56,7 +68,8 @@ export function parseMermaidTrajectory(mmd: string, repoSlug: string): Trajector
       edges.push({
         from: edgeMatch[1],
         to: edgeMatch[3],
-        kind: line.includes('-.->') ? 'planned' : 'blocks',
+        // Note: round-tripping 'planned' converts to 'relatesTo' (both use -.-> arrow) — known limitation
+        kind: line.includes('==>') ? 'supersedes' : line.includes('-.->') ? 'relatesTo' : 'blocks',
         metadata: {},
       });
     }
@@ -95,7 +108,7 @@ export function exportMermaidTrajectory(graph: TrajectoryGraph): string {
 
   // 3. Edges
   for (const edge of graph.edges) {
-    const arrow = edge.kind === 'planned' ? '-.->' : '-->';
+    const arrow = edgeKindToArrow(edge.kind);
     mmd += `    ${edge.from} ${arrow} ${edge.to}\n`;
   }
 

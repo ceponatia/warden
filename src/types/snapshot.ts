@@ -17,6 +17,8 @@ export interface RepoThresholds {
   newFileClusterCount: number;
   lowCoveragePct: number;
   coverageRegressionPct: number;
+  trajectoryMaxNodes?: number;
+  trajectoryStaleClosedDays?: number;
 }
 
 export interface RepoRetention {
